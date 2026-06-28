@@ -1,91 +1,73 @@
-import sqlite3
-import random
-
+from database import db, cursor
 from compute_damage import compute_damage
-
-db = sqlite3.connect("game.db", check_same_thread=False)
-cursor = db.cursor()
-
+import random
 
 def get_player(user_id):
     cursor.execute("""
         SELECT character, hp, max_hp, level, xp, money
-        FROM players
-        WHERE user_id = ?
+        FROM players WHERE user_id = ?
     """, (user_id,))
     return cursor.fetchone()
 
-
 def update_player(user_id, hp, xp_gain, money_gain):
     cursor.execute("""
-        UPDATE players
-        SET hp = ?,
-            xp = xp + ?,
-            money = money + ?
+        UPDATE players SET hp = ?, xp = xp + ?, money = money + ?
         WHERE user_id = ?
     """, (hp, xp_gain, money_gain, user_id))
-
     db.commit()
 
-
-# =========================
-# BLACKBEARD RAID
-# =========================
-def blackbeard(user_id):
+def bigmom(user_id):
     player = get_player(user_id)
-
     if not player:
         return "❌ پلیر پیدا نشد"
 
     character, p_hp, max_hp, level, xp, money = player
 
-    bb_hp = 1800 + level * 320
-    bb_attack = 130 + level * 28
-    bb_defense = 80 + level * 20
+    bm_hp = 1400 + level * 280
+    bm_attack = 110 + level * 22
+    bm_defense = 70 + level * 18
 
-    log = []
-    log.append("🖤 RAID BOSS: BLACKBEARD STARTED!")
+    log = ["👑 RAID BOSS: BIG MOM STARTED!"]
 
-    # =========================
-    # DARKNESS MODE SYSTEM
-    # =========================
-    darkness_mode = False
+    while p_hp > 0 and bm_hp > 0:
 
-    # =========================
-    # FIGHT LOOP
-    # =========================
-    while p_hp > 0 and bb_hp > 0:
-
-        # PLAYER ATTACK
         damage, crit = compute_damage(
-            base_damage=95 + level * 22,
-            mastery=level * 4,
-            form_multiplier=1.5,
-            crit_chance=15,
-            enemy_defense=bb_defense
+            base_damage=85 + level * 18,
+            mastery=level * 3,
+            form_multiplier=1.4,
+            crit_chance=12,
+            enemy_defense=bm_defense
         )
+        bm_hp -= damage
+        log.append(f"{'🔥 CRIT! ' if crit else '⚔️ '}شما {damage} به Big Mom زدی")
 
-        bb_hp -= damage
-
-        if crit:
-            log.append(f"🔥 CRIT! شما {damage} به Blackbeard زدی")
-        else:
-            log.append(f"⚔️ شما {damage} به Blackbeard زدی")
-
-        if bb_hp <= 0:
+        if bm_hp <= 0:
             break
 
-        # =========================
-        # BLACKBEARD ATTACK
-        # =========================
-        attack_roll = random.randint(1, 100)
+        attack_type = random.randint(1, 100)
+        bm_damage = bm_attack
 
-        bb_damage = bb_attack
+        if attack_type > 80:
+            bm_damage *= 2
+            log.append("👻 BIG MOM SOUL MODE!")
 
-        # 🖤 Darkness Mode (مهارت اصلی)
-        if attack_roll > 75:
-            darkness_mode = True
-            bb_damage *= 2
-            log.append("🖤 DARKNESS MODE ACTIVATED!")
+        if attack_type < 15:
+            heal = 100 + level * 20
+            bm_hp += heal
+            log.append(f"💖 Big Mom healed {heal} HP!")
 
-        # 🌑 Gravity Pull
+        bm_damage = max(1, bm_damage - (level * 2))
+        p_hp -= bm_damage
+        log.append(f"💀 Big Mom {bm_damage} دمیج زد")
+
+    if p_hp > 0:
+        xp_gain = 280 + level * 45
+        money_gain = 180 + level * 35
+        update_player(user_id, max_hp, xp_gain, money_gain)
+        loot = random.choice(["Soul Fragment", "Homie Core", "Mythic Armor", "Big Mom Essence"])
+        log += ["\n🏆 YOU DEFEATED BIG MOM!", f"✨ XP +{xp_gain}", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
+    else:
+        update_player(user_id, max_hp, 25, 25)
+        log += ["\n☠️ YOU LOST AGAINST BIG MOM!", "❤️ HP restored"]
+
+    return "\n".join(log)
