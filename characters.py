@@ -22,3 +22,4 @@ characters = {
     "Saint Topman Warcury": {"stats": {"hp": 770}},
     "Saint Shepherd Ju Peter": {"stats": {"hp": 760}},
     "Saint Marcus Mars": {"stats": {"hp": 750}},
+     }
