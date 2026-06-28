@@ -1,5 +1,24 @@
 characters = {
-    "test": {
-        "stats": {"hp": 100}
-    }
-}
+    "Monkey D. Luffy": {"stats": {"hp": 500}},
+    "Roronoa Zoro": {"stats": {"hp": 480}},
+    "Vinsmoke Sanji": {"stats": {"hp": 460}},
+    "Charlotte Katakuri": {"stats": {"hp": 550}},
+    "Marco": {"stats": {"hp": 520}},
+    "Yamato": {"stats": {"hp": 490}},
+    "Kozuki Oden": {"stats": {"hp": 600}},
+    "Silvers Rayleigh": {"stats": {"hp": 580}},
+    "Dracule Mihawk": {"stats": {"hp": 560}},
+    "Monkey D. Garp": {"stats": {"hp": 620}},
+    "Akainu": {"stats": {"hp": 600}},
+    "Aokiji": {"stats": {"hp": 580}},
+    "Kizaru": {"stats": {"hp": 570}},
+    "Fujitora": {"stats": {"hp": 560}},
+    "Greenbull": {"stats": {"hp": 540}},
+    "Shanks": {"stats": {"hp": 650}},
+    "Marshall D. Teach": {"stats": {"hp": 700}},
+    "Gol D. Roger": {"stats": {"hp": 900}},
+    "Saint Jaygarcia Saturn": {"stats": {"hp": 800}},
+    "Saint Ethanbaron V. Nusjuro": {"stats": {"hp": 780}},
+    "Saint Topman Warcury": {"stats": {"hp": 770}},
+    "Saint Shepherd Ju Peter": {"stats": {"hp": 760}},
+    "Saint Marcus Mars": {"stats": {"hp": 750}},
