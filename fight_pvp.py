@@ -1,10 +1,6 @@
-import sqlite3
+from database import db, cursor
 import random
-import time
-
-db = sqlite3.connect("game.db", check_same_thread=False)
-cursor = db.cursor()
-
+import asyncio
 
 # =========================
 # GET PLAYER FULL DATA
@@ -31,12 +27,11 @@ def update_hp(user_id, hp):
 
 
 # =========================
-# GET SKILL DAMAGE (simple)
+# GET SKILL DAMAGE
 # =========================
 def calc_damage(base_damage, form_multiplier):
     crit = random.randint(1, 100)
     crit_mult = 2 if crit > 90 else 1
-
     damage = base_damage * form_multiplier * crit_mult
     return int(damage), crit_mult
 
@@ -49,12 +44,11 @@ def save_fight(user_id, enemy, result, xp, money):
         INSERT INTO fight_history (user_id, enemy, result, reward_xp, reward_money)
         VALUES (?, ?, ?, ?, ?)
     """, (user_id, enemy, result, xp, money))
-
     db.commit()
 
 
 # =========================
-# PVP FIGHT (SIMPLE BOT ENEMY)
+# PVP FIGHT
 # =========================
 def fight(user_id, enemy_name, player_skill_damage):
     player = get_player(user_id)
@@ -67,7 +61,6 @@ def fight(user_id, enemy_name, player_skill_damage):
     enemy_hp = 1000 + (level * 100)
 
     log = []
-
     log.append(f"⚔️ Battle Start: You vs {enemy_name}")
     log.append(f"❤️ HP: {player_hp} vs {enemy_hp}")
 
@@ -75,32 +68,19 @@ def fight(user_id, enemy_name, player_skill_damage):
 
     while player_hp > 0 and enemy_hp > 0:
 
-        # =====================
-        # PLAYER TURN
-        # =====================
         dmg, crit = calc_damage(player_skill_damage, multiplier)
         enemy_hp -= dmg
-
         log.append(f"🟦 Turn {turn}: You hit {dmg} dmg")
 
         if enemy_hp <= 0:
             break
 
-        # =====================
-        # ENEMY TURN
-        # =====================
         enemy_dmg = random.randint(80, 150)
         player_hp -= enemy_dmg
-
         log.append(f"🟥 Turn {turn}: Enemy hits {enemy_dmg} dmg")
 
         turn += 1
 
-        time.sleep(0.2)
-
-    # =========================
-    # RESULT
-    # =========================
     if player_hp > 0:
         result = "WIN"
         xp = 50 + level * 10
@@ -113,7 +93,6 @@ def fight(user_id, enemy_name, player_skill_damage):
         msg = "💀 YOU LOSE!"
 
     save_fight(user_id, enemy_name, result, xp, money)
-
     update_hp(user_id, max(0, player_hp))
 
     log.append(msg)
