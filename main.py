@@ -493,4 +493,210 @@ async def ship(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📝 {ship_data.get('description', '')}"
     )
 
-# =========
+# =========================
+# ISLAND
+# =========================
+async def island(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    cursor.execute("SELECT level FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row:
+        await update.message.reply_text("❌ اول /start بزن.")
+        return
+    level = row[0]
+    current_island = "East Blue"
+    for name, data in islands.items():
+        if level >= data["required_level"]:
+            current_island = name
+    island_data = islands[current_island]
+    text = f"🗺️ جزیره فعلی: {current_island}\n"
+    text += f"⭐ لول مورد نیاز: {island_data['required_level']}\n\n📍 پارت‌ها:\n"
+    for num, part in island_data["parts"].items():
+        text += f"  Part {num}: {part['name']}\n  👹 Boss: {', '.join(part['bosses'])}\n\n"
+    await update.message.reply_text(text)
+
+# =========================
+# TRAVEL
+# =========================
+async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    if not context.args:
+        text = "🗺️ جزیره‌های موجود:\n\n"
+        for name, data in islands.items():
+            text += f"- {name} (Lv{data['required_level']})\n"
+        text += "\nبرای سفر: /travel [نام جزیره]"
+        await update.message.reply_text(text)
+        return
+    dest = " ".join(context.args)
+    if dest not in islands:
+        await update.message.reply_text("❌ این جزیره وجود نداره!")
+        return
+    cursor.execute("SELECT level, current_ship FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row:
+        await update.message.reply_text("❌ اول /start بزن.")
+        return
+    level, current_ship = row
+    island_data = islands[dest]
+    if level < island_data["required_level"]:
+        await update.message.reply_text(f"❌ نیاز به لول {island_data['required_level']} داری!")
+        return
+    if island_data["boat_required"] and not current_ship:
+        await update.message.reply_text("❌ برای این جزیره کشتی نیاز داری! از /ship_shop بخر.")
+        return
+    await update.message.reply_text(f"✅ به {dest} سفر کردی! 🌊")
+
+# =========================
+# UPGRADE
+# =========================
+async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row:
+        await update.message.reply_text("❌ اول /character_select بزن.")
+        return
+    money = row[0]
+    await update.message.reply_text(
+        "⬆️ ارتقای ویژگی‌ها (هر ارتقا 500 💰):\n\n"
+        "/upgrade_hp - افزایش HP +50\n"
+        "/upgrade_attack - افزایش Attack +10\n"
+        "/upgrade_defense - افزایش Defense +10\n"
+        "/upgrade_speed - افزایش Speed +10\n\n"
+        f"💰 پول فعلی: {money}"
+    )
+
+async def upgrade_hp(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row or row[0] < 500:
+        await update.message.reply_text("❌ پول کافی نداری! (نیاز: 500 💰)")
+        return
+    cursor.execute("UPDATE players SET money=money-500, max_hp=max_hp+50, hp=hp+50 WHERE user_id=?", (user.id,))
+    db.commit()
+    await update.message.reply_text("✅ HP +50 شد!")
+
+async def upgrade_attack(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row or row[0] < 500:
+        await update.message.reply_text("❌ پول کافی نداری! (نیاز: 500 💰)")
+        return
+    cursor.execute("UPDATE players SET money=money-500 WHERE user_id=?", (user.id,))
+    db.commit()
+    await update.message.reply_text("✅ Attack +10 شد!")
+
+async def upgrade_defense(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row or row[0] < 500:
+        await update.message.reply_text("❌ پول کافی نداری! (نیاز: 500 💰)")
+        return
+    cursor.execute("UPDATE players SET money=money-500 WHERE user_id=?", (user.id,))
+    db.commit()
+    await update.message.reply_text("✅ Defense +10 شد!")
+
+async def upgrade_speed(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row or row[0] < 500:
+        await update.message.reply_text("❌ پول کافی نداری! (نیاز: 500 💰)")
+        return
+    cursor.execute("UPDATE players SET money=money-500 WHERE user_id=?", (user.id,))
+    db.commit()
+    await update.message.reply_text("✅ Speed +10 شد!")
+
+# =========================
+# DAILY
+# =========================
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    today = datetime.date.today().isoformat()
+    if 'daily_claims' not in context.bot_data:
+        context.bot_data['daily_claims'] = {}
+    if context.bot_data['daily_claims'].get(user.id) == today:
+        await update.message.reply_text("❌ جایزه روزانه رو قبلاً گرفتی! فردا بیا.")
+        return
+    cursor.execute("UPDATE players SET money=money+500, xp=xp+100, hp=max_hp WHERE user_id=?", (user.id,))
+    cursor.execute("UPDATE players SET level=level+1, xp=0 WHERE user_id=? AND xp >= level*100", (user.id,))
+    db.commit()
+    context.bot_data['daily_claims'][user.id] = today
+    await update.message.reply_text("🎁 جایزه روزانه!\n\n💰 +500\n✨ +100 XP\n❤️ HP ریست شد!")
+
+# =========================
+# RANK
+# =========================
+async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    cursor.execute("""
+        SELECT username, character, level FROM players
+        ORDER BY level DESC, xp DESC LIMIT 10
+    """)
+    rows = cursor.fetchall()
+    text = "🏆 رتبه‌بندی:\n\n"
+    medals = ["🥇", "🥈", "🥉"]
+    for i, (username, char_name, level) in enumerate(rows):
+        medal = medals[i] if i < 3 else f"{i+1}."
+        text += f"{medal} @{username} | {char_name} | Lv{level}\n"
+    await update.message.reply_text(text)
+
+# =========================
+# HELP
+# =========================
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📖 راهنما:\n\n"
+        "/start - شروع\n/character_select - انتخاب شخصیت\n"
+        "/character - شخصیت\n/stats - آمار\n/profile - پروفایل\n"
+        "/fight - مبارزه\n/boss - باس\n/skills - اسکیل\n"
+        "/mastery - مستری\n/shop - فروشگاه\n/sword_shop - شمشیر\n"
+        "/ship_shop - کشتی\n/buy [نام] - خرید\n/inventory - کیف\n"
+        "/equip [نام] - تجهیز\n/ship - کشتی فعلی\n"
+        "/island - جزیره\n/travel [نام] - سفر\n"
+        "/upgrade - ارتقا\n/daily - جایزه روزانه\n/rank - رتبه‌بندی"
+    )
+
+# =========================
+# APP SETUP
+# =========================
+app = Application.builder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("character", character))
+app.add_handler(CommandHandler("character_select", character_select))
+app.add_handler(CommandHandler("stats", stats))
+app.add_handler(CommandHandler("profile", profile))
+app.add_handler(CommandHandler("fight", fight_cmd))
+app.add_handler(CommandHandler("boss", boss))
+app.add_handler(CommandHandler("shop", shop))
+app.add_handler(CommandHandler("sword_shop", sword_shop))
+app.add_handler(CommandHandler("ship_shop", ship_shop))
+app.add_handler(CommandHandler("buy", buy))
+app.add_handler(CommandHandler("inventory", inventory))
+app.add_handler(CommandHandler("equip", equip))
+app.add_handler(CommandHandler("skills", skills))
+app.add_handler(CommandHandler("mastery", mastery))
+app.add_handler(CommandHandler("ship", ship))
+app.add_handler(CommandHandler("island", island))
+app.add_handler(CommandHandler("travel", travel))
+app.add_handler(CommandHandler("upgrade", upgrade))
+app.add_handler(CommandHandler("upgrade_hp", upgrade_hp))
+app.add_handler(CommandHandler("upgrade_attack", upgrade_attack))
+app.add_handler(CommandHandler("upgrade_defense", upgrade_defense))
+app.add_handler(CommandHandler("upgrade_speed", upgrade_speed))
+app.add_handler(CommandHandler("daily", daily))
+app.add_handler(CommandHandler("rank", rank))
+app.add_handler(CommandHandler("help", help_cmd))
+app.add_handler(CallbackQueryHandler(pick_character_callback, pattern="^pick_"))
+app.add_handler(CallbackQueryHandler(fight_callback, pattern="^fight_"))
+
+print("Bot Online...")
+app.run_polling()
