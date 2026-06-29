@@ -9,17 +9,17 @@ def get_player(user_id):
     """, (user_id,))
     return cursor.fetchone()
 
-def update_player(user_id, hp, xp_gain, money_gain):
+def update_player(user_id, hp, money_gain):
     cursor.execute("""
-        UPDATE players SET hp = ?, xp = xp + ?, money = money + ?
+        UPDATE players SET hp = ?, money = money + ?
         WHERE user_id = ?
-    """, (hp, xp_gain, money_gain, user_id))
+    """, (hp, money_gain, user_id))
     db.commit()
 
 def bigmom(user_id):
     player = get_player(user_id)
     if not player:
-        return "❌ پلیر پیدا نشد"
+        return "❌ پلیر پیدا نشد", False
 
     character, p_hp, max_hp, level, xp, money = player
 
@@ -61,13 +61,12 @@ def bigmom(user_id):
         log.append(f"💀 Big Mom {bm_damage} دمیج زد")
 
     if p_hp > 0:
-        xp_gain = 280 + level * 45
         money_gain = 180 + level * 35
-        update_player(user_id, max_hp, xp_gain, money_gain)
+        update_player(user_id, max_hp, money_gain)
         loot = random.choice(["Soul Fragment", "Homie Core", "Mythic Armor", "Big Mom Essence"])
-        log += ["\n🏆 YOU DEFEATED BIG MOM!", f"✨ XP +{xp_gain}", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
+        log += ["\n🏆 YOU DEFEATED BIG MOM!", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
+        return "\n".join(log), True
     else:
-        update_player(user_id, max_hp, 25, 25)
+        update_player(user_id, max_hp, 25)
         log += ["\n☠️ YOU LOST AGAINST BIG MOM!", "❤️ HP restored"]
-
-    return "\n".join(log)
+        return "\n".join(log), False
