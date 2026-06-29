@@ -65,14 +65,13 @@ chacharacters = {
     "Kaku":                         {"stats": {"hp": 480,  "attack": 162, "defense": 130, "speed": 148}},
 
     # Supernova / Other Pirates
-    "Basil Hawkins":                {"stats": {"hp": 480,  "attack": 163, "defense": 130, "speed": 130}},
+    "Basil Hawkins":                {"stats": {"hp": 480,  "attack": 163, "defense":  130}},
     "Scratchmen Apoo":              {"stats": {"hp": 460,  "attack": 158, "defense": 120, "speed": 138}},
     "Urouge":                       {"stats": {"hp": 500,  "attack": 165, "defense": 135, "speed": 125}},
     "X Drake":                      {"stats": {"hp": 490,  "attack": 168, "defense": 132, "speed": 135}},
     "Cavendish":                    {"stats": {"hp": 480,  "attack": 170, "defense": 128, "speed": 145}},
 
     # Special / Legends
-    "Imu":                          {"stats": {"hp": 1100, "attack": 280, "defense": 240, "speed": 180}},
     "Monkey D. Dragon":             {"stats": {"hp": 850,  "attack": 240, "defense": 195, "speed": 165}},
 }
 }
