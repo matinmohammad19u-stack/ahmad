@@ -1,6 +1,6 @@
 # skill.py
 
-skills = {
+SKILL_DB = {
 
     # =========================
     # LUFFY (Gear System)
