@@ -82,12 +82,9 @@ def battle(p1, p2, skills_db):
 
     winner = c1["name"] if hp1 > 0 else c2["name"]
 
-    # =========================
-    # 💰 REWARD SYSTEM
-    # =========================
     earned_money = 100 + random.randint(0, 60)
 
     log.append(f"🏆 Winner: {winner}")
-    log.append(f"🎉 Reward: +5 لول | +{earned_money} 💰")
+    log.append(f"🎉 Reward: +{earned_money} 💰")
 
     return log, winner, earned_money
