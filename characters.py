@@ -21,4 +21,5 @@ characters = {
     "Saint Ethanbaron V. Nusjuro": {"stats": {"hp": 780, "attack": 220, "defense": 185, "speed": 140}},
     "Saint Topman Warcury": {"stats": {"hp": 770, "attack": 215, "defense": 180, "speed": 125}},
     "Saint Shepherd Ju Peter": {"stats": {"hp": 760, "attack": 210, "defense": 175, "speed": 120}},
-    "Saint Marcus Mars": {"stats": {"hp": 750, "attack": 205, "defense": 170, "speed": 145}},
+    "Saint Marcus Mars": {"stats": {"hp": 750, "attack": 205, "defense": 170, "speed": 145}}
+}
