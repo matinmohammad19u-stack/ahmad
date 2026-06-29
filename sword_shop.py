@@ -30,7 +30,11 @@ SWORDS_SHOP = {
     "Oto & Kogarashi": {"price": 2300, "attack": 190, "rarity": "Legendary"},
 
     # =========================
-    # Special Weapons (non-sword but blade type)
+    # Added Swords
     # =========================
-    "Gryphon (Shanks Weapon)": {"price": 4200, "attack": 270, "rarity": "Mythic"},
+    "Pretzel": {"price": 1600, "attack": 145, "rarity": "Epic"},
+    "Shambles": {"price": 1400, "attack": 130, "rarity": "Rare"},
+    "Konpira": {"price": 800, "attack": 80, "rarity": "Rare"},
+    "Funkfreed": {"price": 1700, "attack": 150, "rarity": "Epic"},
+    "Hassaikai": {"price": 1900, "attack": 165, "rarity": "Legendary"},
 }
