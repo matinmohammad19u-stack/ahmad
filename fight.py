@@ -38,7 +38,7 @@ def turn_order(p1, p2):
 
 
 # =========================
-# ⚔️ BATTLE FIXED
+# ⚔️ BATTLE
 # =========================
 def battle(p1, p2, skills_db):
 
@@ -85,13 +85,9 @@ def battle(p1, p2, skills_db):
     # =========================
     # 💰 REWARD SYSTEM
     # =========================
-    base_xp = 50
-    base_money = 100
-
-    earned_xp = base_xp + random.randint(0, 40)
-    earned_money = base_money + random.randint(0, 60)
+    earned_money = 100 + random.randint(0, 60)
 
     log.append(f"🏆 Winner: {winner}")
-    log.append(f"✨ Reward: +{earned_xp} XP | +{earned_money} 💰")
+    log.append(f"🎉 Reward: +5 لول | +{earned_money} 💰")
 
-    return log, winner, earned_xp, earned_money
+    return log, winner, earned_money
