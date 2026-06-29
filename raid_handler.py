@@ -5,8 +5,6 @@ from raid_bigmom import bigmom
 from raid_kaido import kaido
 from raid_blackbeard import blackbeard
 
-online_users = {}
-
 async def raid(update, context):
     user = update.effective_user
     cursor.execute("SELECT character, hp FROM players WHERE user_id=?", (user.id,))
