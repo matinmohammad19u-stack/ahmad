@@ -1,10 +1,13 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from database import cursor
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import db, cursor
 from raid_bigmom import bigmom
 from raid_kaido import kaido
 from raid_blackbeard import blackbeard
 
+
+# =========================
+# RAID MENU
+# =========================
 async def raid(update, context):
     user = update.effective_user
     cursor.execute("SELECT character, hp FROM players WHERE user_id=?", (user.id,))
@@ -22,11 +25,36 @@ async def raid(update, context):
     ]
     await update.message.reply_text("⚔️ Raid Boss:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+
+# =========================
+# RAID CALLBACK
+# =========================
 async def raid_callback(update, context):
     query = update.callback_query
     await query.answer()
     user = query.from_user
-    raids = {"raid_bigmom": bigmom, "raid_kaido": kaido, "raid_blackbeard": blackbeard}
+
+    raids = {
+        "raid_bigmom": bigmom,
+        "raid_kaido": kaido,
+        "raid_blackbeard": blackbeard,
+    }
+
     func = raids.get(query.data)
-    result = func(user.id) if func else "❌ خطا"
+    if not func:
+        await query.edit_message_text("❌ خطا")
+        return
+
+    # اجرای raid و گرفتن نتیجه
+    result, won = func(user.id)
+
+    # اگر برد → +15 لول
+    if won:
+        cursor.execute("""
+            UPDATE players SET level=level+15, xp=0
+            WHERE user_id=?
+        """, (user.id,))
+        db.commit()
+        result += "\n\n🎉 +15 لول!"
+
     await query.edit_message_text(result[:4000])
