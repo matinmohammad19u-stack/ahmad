@@ -74,4 +74,4 @@ chacharacters = {
     # Special / Legends
     "Monkey D. Dragon":             {"stats": {"hp": 850,  "attack": 240, "defense": 195, "speed": 165}},
 }
-}
+
