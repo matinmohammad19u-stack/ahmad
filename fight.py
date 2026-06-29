@@ -4,25 +4,16 @@ import copy
 cooldowns = {}
 
 
-# =========================
-# 🎯 انتخاب فرم (فعلاً خودکار Base)
-# =========================
 def get_form(character_name, skills_db):
     forms = list(skills_db[character_name].keys())
-    return forms[0]  # فعلاً Base (بعداً قابل ارتقا)
+    return forms[0]
 
 
-# =========================
-# ⚔️ انتخاب skill
-# =========================
 def pick_skill(character_name, skills_db):
     form = get_form(character_name, skills_db)
     return random.choice(skills_db[character_name][form])
 
 
-# =========================
-# 💥 دمیج
-# =========================
 def calculate_damage(attacker, defender, skill):
     base = skill["damage"]
     atk = attacker["stats"]["attack"]
@@ -38,9 +29,6 @@ def calculate_damage(attacker, defender, skill):
     return max(0, int(dmg)), crit
 
 
-# =========================
-# ⚔️ ترتیب نوبت
-# =========================
 def turn_order(p1, p2):
     if p1["stats"]["speed"] > p2["stats"]["speed"]:
         return [p1, p2]
@@ -50,7 +38,7 @@ def turn_order(p1, p2):
 
 
 # =========================
-# ⚔️ فایت اصلی
+# ⚔️ BATTLE FIXED
 # =========================
 def battle(p1, p2, skills_db):
 
@@ -61,8 +49,9 @@ def battle(p1, p2, skills_db):
     hp2 = c2["stats"]["hp"]
 
     turn = 1
+    log = []
 
-    print(f"⚔️ {c1['name']} VS {c2['name']} START!")
+    log.append(f"⚔️ {c1['name']} VS {c2['name']} START!")
 
     while hp1 > 0 and hp2 > 0:
 
@@ -81,7 +70,7 @@ def battle(p1, p2, skills_db):
             else:
                 hp2 -= damage
 
-            print(
+            log.append(
                 f"Turn {turn}: {attacker['name']} used {skill['name']} "
                 f"-> {damage} dmg" + (" 💥 CRIT!" if crit else "")
             )
@@ -93,6 +82,16 @@ def battle(p1, p2, skills_db):
 
     winner = c1["name"] if hp1 > 0 else c2["name"]
 
-    print(f"🏆 Winner: {winner}")
+    # =========================
+    # 💰 REWARD SYSTEM
+    # =========================
+    base_xp = 50
+    base_money = 100
 
-    return winner
+    earned_xp = base_xp + random.randint(0, 40)
+    earned_money = base_money + random.randint(0, 60)
+
+    log.append(f"🏆 Winner: {winner}")
+    log.append(f"✨ Reward: +{earned_xp} XP | +{earned_money} 💰")
+
+    return log, winner, earned_xp, earned_money
