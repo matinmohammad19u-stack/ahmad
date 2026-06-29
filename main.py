@@ -15,7 +15,10 @@ from islands import islands
 import os
 import random
 import datetime
-
+from raid_bigmom import bigmom
+from raid_kaido import kaido
+from raid_blackbeard import blackbeard
+from raid_handler import raid, raid_callback
 TOKEN = os.environ.get("TOKEN")
 
 # =========================
@@ -697,6 +700,7 @@ app.add_handler(CommandHandler("rank", rank))
 app.add_handler(CommandHandler("help", help_cmd))
 app.add_handler(CallbackQueryHandler(pick_character_callback, pattern="^pick_"))
 app.add_handler(CallbackQueryHandler(fight_callback, pattern="^fight_"))
-
+app.add_handler(CommandHandler("raid", raid))
+app.add_handler(CallbackQueryHandler(raid_callback, pattern="^raid_"))
 print("Bot Online...")
 app.run_polling()
