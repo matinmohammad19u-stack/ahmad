@@ -335,6 +335,349 @@ SKILL_DB = {
             {"name": "Divine Bird Assault", "damage": 250},
             {"name": "Heaven's Judgment", "damage": 265},
             {"name": "Sacred Wind Destruction", "damage": 280}
-        ]
-    }
+        ],
+    },
+# =========================
+    # YONKO
+    # =========================
+    "Kaido": {
+        "Base": [
+            {"name": "Bolo Breath", "damage": 200},
+            {"name": "Kaido Club Slam", "damage": 190},
+        ],
+        "Dragon Form": [
+            {"name": "Tatsumaki Kaifu", "damage": 250},
+            {"name": "Thunder Bagua", "damage": 260},
+        ],
+        "Hybrid Form": [
+            {"name": "Ragnaraku", "damage": 270},
+            {"name": "Shoryu Kaido", "damage": 280},
+        ],
+    },
+
+    "Charlotte Linlin": {
+        "Base": [
+            {"name": "Fist of Mother", "damage": 185},
+            {"name": "Soul Pocus", "damage": 170},
+        ],
+        "Awakened": [
+            {"name": "Heavenly Fire", "damage": 240},
+            {"name": "Indra", "damage": 255},
+            {"name": "Ikoku", "damage": 260},
+        ],
+    },
+
+    "Edward Newgate": {
+        "Base": [
+            {"name": "Quake Shockwave", "damage": 195},
+            {"name": "Seismic Strike", "damage": 185},
+        ],
+        "Tremor Form": [
+            {"name": "Gura Gura Crush", "damage": 255},
+            {"name": "Tectonic Shatter", "damage": 265},
+            {"name": "World Split", "damage": 280},
+        ],
+    },
+
+    # =========================
+    # COMMANDERS / SUPERNOVAS
+    # =========================
+    "Boa Hancock": {
+        "Base": [
+            {"name": "Slave Arrow", "damage": 120},
+            {"name": "Pistol Kiss", "damage": 110},
+        ],
+        "Perfume Femur": [
+            {"name": "Mero Mero Mellow", "damage": 175},
+            {"name": "Slave Cannon", "damage": 185},
+        ],
+    },
+
+    "Portgas D. Ace": {
+        "Base": [
+            {"name": "Fire Fist", "damage": 130},
+            {"name": "Flame Shot", "damage": 120},
+        ],
+        "Awakened": [
+            {"name": "Entei", "damage": 190},
+            {"name": "Dai Enkai", "damage": 200},
+        ],
+    },
+
+    "Sabo": {
+        "Base": [
+            {"name": "Dragon Claw", "damage": 125},
+            {"name": "Hiken", "damage": 135},
+        ],
+        "Flame Form": [
+            {"name": "Ryusoken", "damage": 180},
+            {"name": "Ace's Will Fire Fist", "damage": 200},
+        ],
+    },
+
+    "Trafalgar D. Water Law": {
+        "Base": [
+            {"name": "Gamma Knife", "damage": 120},
+            {"name": "Shambles", "damage": 110},
+        ],
+        "Awakened": [
+            {"name": "K-Room Spike", "damage": 180},
+            {"name": "Puncture Wille", "damage": 195},
+        ],
+    },
+
+    "Eustass Kid": {
+        "Base": [
+            {"name": "Punk Pistol", "damage": 130},
+            {"name": "Metal Crush", "damage": 120},
+        ],
+        "Awakened": [
+            {"name": "Damned Punk", "damage": 200},
+            {"name": "Punk Corna Dio", "damage": 210},
+        ],
+    },
+
+    "Killer": {
+        "Base": [
+            {"name": "Scythe Slash", "damage": 110},
+            {"name": "Buzz Cut Blade", "damage": 120},
+        ],
+        "Sonic Form": [
+            {"name": "Kamaa Sonic", "damage": 170},
+            {"name": "Death Slash", "damage": 180},
+        ],
+    },
+
+    "Jinbe": {
+        "Base": [
+            {"name": "Fishman Karate Punch", "damage": 120},
+            {"name": "Vagabond Drill", "damage": 130},
+        ],
+        "Water Form": [
+            {"name": "Arabesque Brick Fist", "damage": 180},
+            {"name": "Sea Current Slam", "damage": 190},
+        ],
+    },
+
+    "Crocodile": {
+        "Base": [
+            {"name": "Desert Spada", "damage": 120},
+            {"name": "Sand Tomb", "damage": 110},
+        ],
+        "Awakened": [
+            {"name": "Ground Secco", "damage": 175},
+            {"name": "Desert Girasole", "damage": 185},
+        ],
+    },
+
+    "Doflamingo": {
+        "Base": [
+            {"name": "Goshikito", "damage": 130},
+            {"name": "Athlete", "damage": 120},
+        ],
+        "Awakened": [
+            {"name": "Bird Cage", "damage": 160},
+            {"name": "Ikkou Tobu", "damage": 200},
+            {"name": "God Thread", "damage": 215},
+        ],
+    },
+
+    "Issho": {
+        "Base": [
+            {"name": "Gravity Push", "damage": 120},
+            {"name": "Meteor Pull", "damage": 140},
+        ],
+        "Awakened": [
+            {"name": "Planet Crush", "damage": 220},
+            {"name": "Gravity Collapse", "damage": 240},
+        ],
+    },
+# =========================
+    # CHARLOTTE FAMILY
+    # =========================
+    "Charlotte Smoothie": {
+        "Base": [
+            {"name": "Wring Slash", "damage": 115},
+            {"name": "Juice Blade", "damage": 120},
+        ],
+        "Giant Form": [
+            {"name": "Drought Slash", "damage": 175},
+            {"name": "Squeeze Devastation", "damage": 185},
+        ],
+    },
+
+    "Charlotte Cracker": {
+        "Base": [
+            {"name": "Biscuit Soldier", "damage": 110},
+            {"name": "Cracker Slash", "damage": 120},
+        ],
+        "Biscuit Armor": [
+            {"name": "Bis Bis Cannon", "damage": 170},
+            {"name": "Thousand Arms Crush", "damage": 185},
+        ],
+    },
+
+    "Charlotte Perospero": {
+        "Base": [
+            {"name": "Candy Sword", "damage": 105},
+            {"name": "Lollipop Candy Shower", "damage": 115},
+        ],
+        "Candy Form": [
+            {"name": "Candy Imprisonment", "damage": 160},
+            {"name": "Perorin Shower", "damage": 170},
+        ],
+    },
+    
+# =========================
+    # KAIDO'S FORCES
+    # =========================
+    "King": {
+        "Base": [
+            {"name": "Anesthetic Slash", "damage": 135},
+            {"name": "Omori Karasuma", "damage": 145},
+        ],
+        "Pteranodon Form": [
+            {"name": "Tempura Udon", "damage": 195},
+            {"name": "Imperial Flames", "damage": 210},
+        ],
+    },
+
+    "Queen": {
+        "Base": [
+            {"name": "Brachiosaurus Slam", "damage": 130},
+            {"name": "Plague Rounds", "damage": 120},
+        ],
+        "Hybrid Form": [
+            {"name": "Black Coffee", "damage": 185},
+            {"name": "Cog of Destruction", "damage": 200},
+        ],
+    },
+
+    "Jack": {
+        "Base": [
+            {"name": "Mammoth Stomp", "damage": 125},
+            {"name": "Tusk Crash", "damage": 130},
+        ],
+        "Mammoth Form": [
+            {"name": "Drought Devastation", "damage": 180},
+            {"name": "Eternal Torment", "damage": 195},
+        ],
+    },
+    # =========================
+    # MARINES / CP0
+    # =========================
+    "Smoker": {
+        "Base": [
+            {"name": "Smoke Punch", "damage": 100},
+            {"name": "White Out", "damage": 110},
+        ],
+        "Awakened": [
+            {"name": "Smoke Binding", "damage": 160},
+            {"name": "White Snake", "damage": 175},
+        ],
+    },
+
+    "Coby": {
+        "Base": [
+            {"name": "Haki Punch", "damage": 95},
+            {"name": "Soru Strike", "damage": 105},
+        ],
+        "Hero Mode": [
+            {"name": "Honesty Impact", "damage": 160},
+            {"name": "Marine Rising Star", "damage": 170},
+        ],
+    },
+
+    "Rob Lucci": {
+        "Base": [
+            {"name": "Shigan", "damage": 115},
+            {"name": "Rankyaku", "damage": 120},
+        ],
+        "Awakened Leopard": [
+            {"name": "Leopard Barrage", "damage": 185},
+            {"name": "Awakened Rokuogan", "damage": 200},
+        ],
+    },
+
+    "Kaku": {
+        "Base": [
+            {"name": "Rankyaku", "damage": 105},
+            {"name": "Bigan", "damage": 110},
+        ],
+        "Giraffe Hybrid": [
+            {"name": "Pasta Machine", "damage": 165},
+            {"name": "Giraffe Cannon", "damage": 175},
+        ],
+    },
+# =========================
+    # SUPERNOVA / OTHER PIRATES
+    # =========================
+    "Basil Hawkins": {
+        "Base": [
+            {"name": "Straw Man Slash", "damage": 105},
+            {"name": "Nail Spike", "damage": 110},
+        ],
+        "Voodoo Form": [
+            {"name": "Death Forecast", "damage": 160},
+            {"name": "Card of Fate", "damage": 170},
+        ],
+    },
+
+    "Scratchmen Apoo": {
+        "Base": [
+            {"name": "Scratch Punch", "damage": 100},
+            {"name": "Beat Slash", "damage": 105},
+        ],
+        "Music Form": [
+            {"name": "Tatakau Ongaku", "damage": 155},
+            {"name": "Sound Shatter", "damage": 165},
+        ],
+    },
+
+    "Urouge": {
+        "Base": [
+            {"name": "Damage Absorb Punch", "damage": 110},
+            {"name": "Karma Slam", "damage": 115},
+        ],
+        "Sin Form": [
+            {"name": "Heavenly Punishment", "damage": 165},
+            {"name": "Enlarged Devastation", "damage": 180},
+        ],
+    },
+
+    "X Drake": {
+        "Base": [
+            {"name": "Allosaurus Bite", "damage": 110},
+            {"name": "Drake Claw", "damage": 115},
+        ],
+        "Hybrid Form": [
+            {"name": "Dinosaur Rampage", "damage": 165},
+            {"name": "Rear Admiral Strike", "damage": 180},
+        ],
+    },
+
+    "Cavendish": {
+        "Base": [
+            {"name": "Durandal Slash", "damage": 115},
+            {"name": "Pirate Prince Cut", "damage": 120},
+        ],
+        "Hakuba Mode": [
+            {"name": "Slashing Gale", "damage": 175},
+            {"name": "Hakuba Death Reap", "damage": 190},
+        ],
+    },
+        # =========================
+    # SPECIAL / LEGENDS
+    # =========================
+    "Monkey D. Dragon": {
+        "Base": [
+            {"name": "Wind Slash", "damage": 165},
+            {"name": "Storm Strike", "damage": 175},
+        ],
+        "Storm Form": [
+            {"name": "Revolutionary Tempest", "damage": 240},
+            {"name": "Dragon's Wrath", "damage": 255},
+            {"name": "World Liberation Storm", "damage": 270},
+        ],
+    },
 }
