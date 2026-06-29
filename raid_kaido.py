@@ -9,17 +9,17 @@ def get_player(user_id):
     """, (user_id,))
     return cursor.fetchone()
 
-def update_player(user_id, hp, xp_gain, money_gain):
+def update_player(user_id, hp, money_gain):
     cursor.execute("""
-        UPDATE players SET hp = ?, xp = xp + ?, money = money + ?
+        UPDATE players SET hp = ?, money = money + ?
         WHERE user_id = ?
-    """, (hp, xp_gain, money_gain, user_id))
+    """, (hp, money_gain, user_id))
     db.commit()
 
 def kaido(user_id):
     player = get_player(user_id)
     if not player:
-        return "❌ پلیر پیدا نشد"
+        return "❌ پلیر پیدا نشد", False
 
     character, p_hp, max_hp, level, xp, money = player
 
@@ -55,13 +55,12 @@ def kaido(user_id):
         log.append(f"💀 Kaido {kaido_damage} دمیج زد")
 
     if p_hp > 0:
-        xp_gain = 300 + level * 50
         money_gain = 200 + level * 40
-        update_player(user_id, max_hp, xp_gain, money_gain)
+        update_player(user_id, max_hp, money_gain)
         loot = random.choice(["Dragon Scale", "Mythic Weapon", "Advanced Haki Scroll", "Kaido Fragment (Rare)"])
-        log += ["\n🏆 YOU DEFEATED KAIDO!", f"✨ XP +{xp_gain}", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
+        log += ["\n🏆 YOU DEFEATED KAIDO!", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
+        return "\n".join(log), True
     else:
-        update_player(user_id, max_hp, 30, 30)
+        update_player(user_id, max_hp, 30)
         log += ["\n☠️ YOU LOST AGAINST KAIDO!", "❤️ HP restored"]
-
-    return "\n".join(log)
+        return "\n".join(log), False
