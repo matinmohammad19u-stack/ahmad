@@ -1,4 +1,4 @@
-chacharacters = {
+characters = {
     # ─── شخصیت‌های قبلی ───────────────────────────────────────────────
     "Monkey D. Luffy":              {"stats": {"hp": 500, "attack": 160, "defense": 100, "speed": 140}},
     "Roronoa Zoro":                 {"stats": {"hp": 480, "attack": 170, "defense": 110, "speed": 120}},
