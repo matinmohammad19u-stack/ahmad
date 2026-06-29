@@ -59,6 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/daily - جایزه روزانه\n"
         "/rank - رتبه‌بندی\n"
         "/help - راهنما"
+        "/raid - نبرد گروهی\n"
     )
 
 # =========================
