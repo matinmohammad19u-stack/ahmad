@@ -336,3 +336,4 @@ SKILL_DB = {
             {"name": "Heaven's Judgment", "damage": 265},
             {"name": "Sacred Wind Destruction", "damage": 280}
         ]         
+    }
