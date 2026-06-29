@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from database import db, cursor
 from characters import characters
-from skills import SKILLS_DB
+from skills import SKILL_DB
 from skill_system import get_available_skills, add_mastery
 from shop import buy_item, SHOP_ITEMS, get_money
 from inventory import get_inventory, add_item
