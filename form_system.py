@@ -1,6 +1,7 @@
 from database import db, cursor
+from skills import SKILLS_DB  # یا هر اسمی که داری
 
-def change_form(user_id: int, form_name: str, characters: dict):
+def change_form(user_id: int, form_name: str):
     cursor.execute("""
         SELECT character, current_form FROM players WHERE user_id = ?
     """, (user_id,))
@@ -14,12 +15,13 @@ def change_form(user_id: int, form_name: str, characters: dict):
     if not character_name:
         return "❌ هنوز شخصیت نداری"
 
-    char_data = characters.get(character_name)
-    if not char_data:
+    if character_name not in SKILLS_DB:
         return "❌ شخصیت نامعتبره"
 
-    if form_name not in char_data["forms"]:
-        return "❌ این فرم برای این شخصیت وجود ندارد"
+    available_forms = list(SKILLS_DB[character_name].keys())
+
+    if form_name not in available_forms:
+        return f"❌ فرم‌های موجود: {', '.join(available_forms)}"
 
     cursor.execute("""
         UPDATE players SET current_form = ? WHERE user_id = ?
