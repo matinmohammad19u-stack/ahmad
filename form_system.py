@@ -1,18 +1,9 @@
-import sqlite3
-from characters import characters
+from database import db, cursor
 
-db = sqlite3.connect("game.db", check_same_thread=False)
-cursor = db.cursor()
-
-
-def change_form(user_id: int, form_name: str):
-    # گرفتن شخصیت پلیر
+def change_form(user_id: int, form_name: str, characters: dict):
     cursor.execute("""
-        SELECT character, current_form
-        FROM players
-        WHERE user_id = ?
+        SELECT character, current_form FROM players WHERE user_id = ?
     """, (user_id,))
-
     data = cursor.fetchone()
 
     if not data:
@@ -24,20 +15,15 @@ def change_form(user_id: int, form_name: str):
         return "❌ هنوز شخصیت نداری"
 
     char_data = characters.get(character_name)
-
     if not char_data:
         return "❌ شخصیت نامعتبره"
 
     if form_name not in char_data["forms"]:
         return "❌ این فرم برای این شخصیت وجود ندارد"
 
-    # تغییر فرم
     cursor.execute("""
-        UPDATE players
-        SET current_form = ?
-        WHERE user_id = ?
+        UPDATE players SET current_form = ? WHERE user_id = ?
     """, (form_name, user_id))
-
     db.commit()
 
     return f"⚡ فرم {character_name} تغییر کرد به {form_name}"
