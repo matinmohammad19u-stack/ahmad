@@ -1,63 +1,46 @@
-import sqlite3
+from database import db, cursor
+from inventory import add_item
 
-db = sqlite3.connect("game.db", check_same_thread=False)
-cursor = db.cursor()
+SHOP_ITEMS = {
+    "Small Potion":   {"price": 50,   "type": "heal",  "heal": 50},
+    "Medium Potion":  {"price": 120,  "type": "heal",  "heal": 120},
+    "Large Potion":   {"price": 250,  "type": "heal",  "heal": 300},
+    "Training Boost": {"price": 300,  "type": "boost", "xp_multiplier": 2},
+    "Basic Ship":     {"price": 500,  "type": "ship",  "speed": 1, "durability": 1},
+    "Speed Ship":     {"price": 1200, "type": "ship",  "speed": 2, "durability": 1},
+    "War Ship":       {"price": 2500, "type": "ship",  "speed": 3, "durability": 3},
+}
 
-# =========================
-# EQUIP WEAPON (شمشیر)
-# =========================
-def equip_weapon(user_id, weapon_name):
-    # چک کن آیتم رو داره یا نه
+def get_money(user_id):
+    cursor.execute("SELECT money FROM players WHERE user_id=?", (user_id,))
+    result = cursor.fetchone()
+    return result[0] if result else 0
+
+def buy_item(user_id, item_name):
+    if item_name not in SHOP_ITEMS:
+        return "❌ این آیتم وجود ندارد"
+
+    item = SHOP_ITEMS[item_name]
+    price = item["price"]
+    money = get_money(user_id)
+
+    if money < price:
+        return "❌ پول کافی نداری"
+
     cursor.execute("""
-        SELECT item_name FROM inventory
-        WHERE user_id = ? AND item_name = ?
-    """, (user_id, weapon_name))
+        UPDATE players SET money = money - ? WHERE user_id = ?
+    """, (price, user_id))
 
-    item = cursor.fetchone()
-
-    if not item:
-        return "❌ این آیتم رو نداری"
-
-    # ذخیره کردن سلاح مجهز شده
-    cursor.execute("""
-        UPDATE players
-        SET equipped_weapon = ?
-        WHERE user_id = ?
-    """, (weapon_name, user_id))
+    if item["type"] == "ship":
+        cursor.execute("""
+            INSERT INTO ships (user_id, ship_name, speed, durability)
+            VALUES (?, ?, ?, ?)
+        """, (user_id, item_name, item["speed"], item["durability"]))
+        cursor.execute("""
+            UPDATE players SET current_ship = ? WHERE user_id = ?
+        """, (item_name, user_id))
+    else:
+        add_item(user_id, item_name, item["type"])
 
     db.commit()
-
-    return f"⚔️ {weapon_name} مجهز شد!"
-
-
-# =========================
-# GET EQUIPPED WEAPON
-# =========================
-def get_equipped_weapon(user_id):
-    cursor.execute("""
-        SELECT equipped_weapon
-        FROM players
-        WHERE user_id = ?
-    """, (user_id,))
-
-    result = cursor.fetchone()
-
-    if not result:
-        return None
-
-    return result[0]
-
-
-# =========================
-# GET BONUS DAMAGE
-# =========================
-def get_weapon_damage(user_id, swords_dict):
-    weapon = get_equipped_weapon(user_id)
-
-    if not weapon:
-        return 0
-
-    if weapon in swords_dict:
-        return swords_dict[weapon]["attack"]
-
-    return 0
+    return f"✅ {item_name} خریداری شد!"
