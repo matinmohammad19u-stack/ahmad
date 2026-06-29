@@ -63,32 +63,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
-# CHARACTER
-# =========================
-async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    online_users[user.id] = user.first_name
-    cursor.execute("""
-        SELECT level, xp, money, character, hp, max_hp, current_form, awakening
-        FROM players WHERE user_id=?
-    """, (user.id,))
-    data = cursor.fetchone()
-    if not data or not data[3]:
-        await update.message.reply_text("❌ هنوز شخصیت نداری! /character_select بزن.")
-        return
-    level, xp, money, char_name, hp, max_hp, form, awakening = data
-    awake_text = "🔥 Awakened" if awakening else "😴 Normal"
-    await update.message.reply_text(
-        f"👤 {user.first_name}\n\n"
-        f"🎭 شخصیت: {char_name}\n"
-        f"⚡ فرم: {form}\n"
-        f"🌀 اویکنینگ: {awake_text}\n"
-        f"⭐ لول: {level}\n"
-        f"💰 پول: {money}\n"
-        f"❤️ HP: {hp}/{max_hp}"
-    )
-
-# =========================
 # CHARACTER SELECT
 # =========================
 async def character_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -166,7 +140,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💨 Speed: {speed}\n"
         f"🗡️ سلاح: {weapon or 'ندارم'}\n"
         f"⛵ کشتی: {ship or 'ندارم'}"
-    )
+        )
 
 # =========================
 # PROFILE
@@ -239,24 +213,18 @@ async def fight_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p2_data = {"name": p2[0], "stats": characters[p2[0]]["stats"].copy()}
     p1_data["stats"]["hp"] = p1[1]
     p2_data["stats"]["hp"] = p2[1]
-    log, winner, earned_xp = battle(user.id, p1_data, p2_data, SKILLS_DB)
+    log, winner, earned_money = battle(p1_data, p2_data, SKILL_DB)
     if winner == p1[0]:
-        cursor.execute("UPDATE players SET xp=xp+?, money=money+? WHERE user_id=?", (earned_xp, 100, user.id))
+        cursor.execute("UPDATE players SET level=level+5, xp=0, money=money+? WHERE user_id=?", (earned_money, user.id))
         cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (enemy_id,))
     else:
-        cursor.execute("UPDATE players SET xp=xp+10 WHERE user_id=?", (user.id,))
         cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (user.id,))
-    cursor.execute("""
-        UPDATE players SET level=level+1, xp=0
-        WHERE user_id=? AND xp >= level*100
-    """, (user.id,))
     cursor.execute("""
         INSERT INTO fight_history (user_id, enemy, result, reward_xp, reward_money)
         VALUES (?, ?, ?, ?, ?)
-    """, (user.id, p2[0], "WIN" if winner == p1[0] else "LOSE", earned_xp, 100))
+    """, (user.id, p2[0], "WIN" if winner == p1[0] else "LOSE", 0, earned_money))
     db.commit()
     await query.edit_message_text(log[:4000])
-
 # =========================
 # BOSS
 # =========================
@@ -291,17 +259,12 @@ async def boss(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log.append(f"Turn {turn}: {boss_name} {b_dmg} زد به تو")
         turn += 1
     if player_hp > 0:
-        xp = 200 + level * 20
         money = 500 + level * 50
-        cursor.execute("UPDATE players SET xp=xp+?, money=money+?, hp=? WHERE user_id=?", (xp, money, max(1, player_hp), user.id))
-        log.append(f"🏆 Boss کشتی! +{xp} XP +{money} 💰")
+        cursor.execute("UPDATE players SET level=level+5, xp=0, money=money+?, hp=? WHERE user_id=?", (money, max(1, player_hp), user.id))
+        log.append(f"🏆 Boss کشتی! +5 لول 💰 +{money}")
     else:
         cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (user.id,))
         log.append("💀 باختی! HP ریست شد.")
-    cursor.execute("""
-        UPDATE players SET level=level+1, xp=0
-        WHERE user_id=? AND xp >= level*100
-    """, (user.id,))
     db.commit()
     await update.message.reply_text("\n".join(log)[:4000])
 
@@ -316,19 +279,7 @@ async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"- {name}: {item['price']} 💰\n"
     text += "\nبرای خرید: /buy [نام آیتم]"
     await update.message.reply_text(text)
-
-# =========================
-# SWORD SHOP
-# =========================
-async def sword_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    online_users[user.id] = user.first_name
-    text = "⚔️ فروشگاه شمشیر:\n\n"
-    for name, item in SWORDS_SHOP.items():
-        text += f"🗡️ {name}\n   [{item['rarity']}] ATK+{item['attack']} | {item['price']} 💰\n\n"
-    text += "برای خرید: /buy [نام شمشیر]"
-    await update.message.reply_text(text)
-
+        
 # =========================
 # SHIP SHOP
 # =========================
@@ -387,8 +338,7 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         result = "❌ این آیتم وجود نداره"
     await update.message.reply_text(result)
-
-# =========================
+    # =========================
 # INVENTORY
 # =========================
 async def inventory(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -549,7 +499,7 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(f"✅ به {dest} سفر کردی! 🌊")
 
-# =========================
+    # =========================
 # UPGRADE
 # =========================
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -626,11 +576,10 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.bot_data['daily_claims'].get(user.id) == today:
         await update.message.reply_text("❌ جایزه روزانه رو قبلاً گرفتی! فردا بیا.")
         return
-    cursor.execute("UPDATE players SET money=money+500, xp=xp+100, hp=max_hp WHERE user_id=?", (user.id,))
-    cursor.execute("UPDATE players SET level=level+1, xp=0 WHERE user_id=? AND xp >= level*100", (user.id,))
+    cursor.execute("UPDATE players SET money=money+500, xp=0, hp=max_hp WHERE user_id=?", (user.id,))
     db.commit()
     context.bot_data['daily_claims'][user.id] = today
-    await update.message.reply_text("🎁 جایزه روزانه!\n\n💰 +500\n✨ +100 XP\n❤️ HP ریست شد!")
+    await update.message.reply_text("🎁 جایزه روزانه!\n\n💰 +500\n❤️ HP ریست شد!")
 
 # =========================
 # RANK
@@ -649,7 +598,7 @@ async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         medal = medals[i] if i < 3 else f"{i+1}."
         text += f"{medal} @{username} | {char_name} | Lv{level}\n"
     await update.message.reply_text(text)
-
+    
 # =========================
 # HELP
 # =========================
