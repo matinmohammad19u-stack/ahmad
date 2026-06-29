@@ -84,7 +84,6 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚡ فرم: {form}\n"
         f"🌀 اویکنینگ: {awake_text}\n"
         f"⭐ لول: {level}\n"
-        f"✨ XP: {xp}\n"
         f"💰 پول: {money}\n"
         f"❤️ HP: {hp}/{max_hp}"
     )
@@ -160,7 +159,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"📊 آمار {char_name}\n\n"
         f"⭐ لول: {level}\n"
-        f"✨ XP: {xp}/{level * 100}\n"
         f"💰 پول: {money}\n"
         f"❤️ HP: {hp}/{max_hp}\n"
         f"⚔️ Attack: {attack}\n"
@@ -196,7 +194,6 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚡ فرم: {form}\n"
         f"🌀 Awakening: {'🔥 Yes' if awakening else '❌ No'}\n"
         f"⭐ لول: {level}\n"
-        f"✨ XP: {xp}/{level * 100}\n"
         f"💰 پول: {money}\n"
         f"❤️ HP: {hp}/{max_hp}\n"
         f"🗡️ سلاح: {weapon or 'ندارم'}\n"
