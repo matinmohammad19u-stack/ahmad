@@ -325,7 +325,7 @@ SKILL_DB = {
         ]
     },
 
-    "Saint Marcus Mars": {
+        "Saint Marcus Mars": {
         "Base": [
             {"name": "Falcon Strike", "damage": 165},
             {"name": "Sky Dive", "damage": 175},
@@ -335,5 +335,6 @@ SKILL_DB = {
             {"name": "Divine Bird Assault", "damage": 250},
             {"name": "Heaven's Judgment", "damage": 265},
             {"name": "Sacred Wind Destruction", "damage": 280}
-        ]         
+        ]
     }
+}
