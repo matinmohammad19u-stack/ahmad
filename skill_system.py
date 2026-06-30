@@ -38,14 +38,19 @@ def add_mastery(user_id, character, skill_name, amount=10):
     data = cursor.fetchone()
 
     if data is None:
+        # FIX: clamp به 100 (قبلاً اگه amount > 100 بود رکورد خراب می‌شد)
+        start_mastery = min(100, amount)
+        unlocked = 1 if start_mastery >= 100 else 0
         cursor.execute("""
             INSERT INTO skill_mastery
             (user_id, character, skill_name, mastery, unlocked)
             VALUES (?, ?, ?, ?, ?)
-        """, (user_id, character, skill_name, amount, 0))
+        """, (user_id, character, skill_name, start_mastery, unlocked))
     else:
         mastery, unlocked = data
-        mastery += amount
+        # FIX: قبلاً mastery می‌تونست از 100 رد بشه و نوار پیشرفت (progress bar)
+        # توی main.py خراب نمایش داده بشه. الان همیشه بین 0 تا 100 می‌مونه.
+        mastery = min(100, mastery + amount)
 
         if mastery >= 100:
             unlocked = 1
