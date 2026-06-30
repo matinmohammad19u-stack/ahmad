@@ -68,14 +68,22 @@ def _cleanup_battle(battle_id):
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    msg = update.effective_message
+
     username = user.username or "no_username"
+
     cursor.execute(
         "INSERT OR IGNORE INTO players (user_id, username) VALUES (?, ?)",
         (user.id, username)
     )
     db.commit()
+
     online_users[user.id] = user.first_name
-    await update.message.reply_text(
+
+    if not msg:
+        return
+
+    await msg.reply_text(
         "🏴‍☠️ به One Piece RPG خوش اومدی!\n\n"
         "📋 دستورات اصلی:\n"
         "/character_select - انتخاب شخصیت\n"
