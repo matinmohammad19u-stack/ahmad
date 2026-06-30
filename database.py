@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 # =========================
-# ساده‌ترین و پایدارترین حالت برای Railway بدون Volume
+# Railway-safe SQLite (بدون Volume)
 # =========================
 
 DB_PATH = os.environ.get("DB_PATH", "game.db")
