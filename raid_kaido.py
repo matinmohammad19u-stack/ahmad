@@ -1,66 +1,88 @@
-from database import db, cursor
-from compute_damage import compute_damage
+# raid_kaido.py
 import random
+from database import db, cursor
+from characters import characters
 
-def get_player(user_id):
-    cursor.execute("""
-        SELECT character, hp, max_hp, level, xp, money
-        FROM players WHERE user_id = ?
-    """, (user_id,))
-    return cursor.fetchone()
 
-def update_player(user_id, hp, money_gain):
-    cursor.execute("""
-        UPDATE players SET hp = ?, money = money + ?
-        WHERE user_id = ?
-    """, (hp, money_gain, user_id))
-    db.commit()
+def kaido(user_id: int):
+    """
+    Raid: Kaido (King of Beasts)
+    برمی‌گردونه: (result_text, won_bool)
+    """
+    cursor.execute(
+        "SELECT character, hp, max_hp, level FROM players WHERE user_id=?",
+        (user_id,)
+    )
+    data = cursor.fetchone()
 
-def kaido(user_id):
-    player = get_player(user_id)
-    if not player:
-        return "❌ پلیر پیدا نشد", False
+    if not data or not data[0]:
+        return "❌ شخصیت نداری!", False
 
-    character, p_hp, max_hp, level, xp, money = player
+    char_name, hp, max_hp, level = data
 
-    kaido_hp = 1500 + level * 300
-    kaido_attack = 120 + level * 25
-    kaido_defense = 60 + level * 15
+    if hp <= 0:
+        return "❌ HP نداری! از /daily استفاده کن.", False
 
-    log = ["🐉 RAID BOSS: KAIDO STARTED!"]
+    char_stats = characters[char_name]["stats"]
+    player_attack = char_stats["attack"]
+    player_defense = char_stats["defense"]
 
-    while p_hp > 0 and kaido_hp > 0:
+    # Kaido Stats
+    boss_hp = 6000 + level * 250
+    boss_attack = 220 + level * 10
+    boss_defense = 180 + level * 4
 
-        damage, crit = compute_damage(
-            base_damage=90 + level * 20,
-            mastery=level * 4,
-            form_multiplier=1.5,
-            crit_chance=15,
-            enemy_defense=kaido_defense
-        )
-        kaido_hp -= damage
-        log.append(f"{'🔥 CRIT! ' if crit else '⚔️ '}شما {damage} به Kaido زدی")
+    player_hp = hp
+    log = [
+        "🐉 RAID BOSS: Kaido (King of Beasts)!",
+        f"❤️ Boss HP: {boss_hp}",
+        f"⚔️ تو: {char_name} | HP: {player_hp}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+    ]
 
-        if kaido_hp <= 0:
+    turn = 1
+    while player_hp > 0 and boss_hp > 0 and turn <= 25:
+        # حمله بازیکن
+        dmg = int((player_attack * random.uniform(0.9, 1.2)) - boss_defense * 0.2)
+        dmg = max(1, dmg)
+        boss_hp -= dmg
+        crit = random.random() < 0.1
+        if crit:
+            bonus = dmg // 2
+            boss_hp -= bonus
+            log.append(f"Turn {turn}: تو {dmg + bonus} 💥CRIT زدی!")
+        else:
+            log.append(f"Turn {turn}: تو {dmg} زدی به Kaido")
+
+        if boss_hp <= 0:
             break
 
-        rage = random.randint(1, 100)
-        kaido_damage = kaido_attack
-        if rage > 85:
-            kaido_damage *= 2
-            log.append("🐉 KAIDO RAGE MODE!")
+        # حمله Boss - Kaido فازهای مختلف داره
+        phase = turn // 8
+        if phase == 0:
+            b_dmg = int(boss_attack * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: Kaido با Bolo Breath {b_dmg} زد!")
+        elif phase == 1:
+            b_dmg = int(boss_attack * 1.3 * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: 🐉 Dragon Kaido! Thunder Bagua: {b_dmg} DMG!")
+        else:
+            b_dmg = int(boss_attack * 1.6 * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: ⚡ Hybrid Kaido! Ragnaraku: {b_dmg} DMG!")
 
-        kaido_damage = max(1, kaido_damage - (level * 2))
-        p_hp -= kaido_damage
-        log.append(f"💀 Kaido {kaido_damage} دمیج زد")
+        b_dmg = max(1, int(b_dmg - player_defense * 0.3))
+        player_hp -= b_dmg
+        turn += 1
 
-    if p_hp > 0:
-        money_gain = 200 + level * 40
-        update_player(user_id, max_hp, money_gain)
-        loot = random.choice(["Dragon Scale", "Mythic Weapon", "Advanced Haki Scroll", "Kaido Fragment (Rare)"])
-        log += ["\n🏆 YOU DEFEATED KAIDO!", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
-        return "\n".join(log), True
+    won = player_hp > 0
+    final_hp = max(1, player_hp) if won else max_hp
+
+    cursor.execute("UPDATE players SET hp=? WHERE user_id=?", (final_hp, user_id))
+    db.commit()
+
+    log.append("━━━━━━━━━━━━━━━━━━━━━━")
+    if won:
+        log.append("🏆 Kaido افتاد! تو قوی‌ترین موجود در دنیا رو شکست دادی!")
     else:
-        update_player(user_id, max_hp, 30)
-        log += ["\n☠️ YOU LOST AGAINST KAIDO!", "❤️ HP restored"]
-        return "\n".join(log), False
+        log.append("💀 Kaido پیروز شد! HP ریست شد.")
+
+    return "\n".join(log), won
