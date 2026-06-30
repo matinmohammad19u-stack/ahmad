@@ -10,6 +10,7 @@ from awakening import check_awakening
 from form_system import change_form                  # FIX: form_system نه form
 from ship_system import ships                        # FIX: ship_system نه ships
 from swords_shop import SWORDS_SHOP                  # FIX: فایل ساخته شد
+from daily import claim_daily                          # FIX: /daily پیاده‌سازی شد
 from islands import islands
 from raid_handler import raid, raid_callback          # FIX: raid files ساخته شدن
 from fight import create_battle, apply_action, get_actions  # تبدیل به Button Battle
@@ -211,7 +212,6 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🗡️ سلاح: {weapon or 'ندارم'}\n\n"
         f"🔄 فرم‌های موجود:\n" +
         "\n".join(f"  • {f}" for f in forms_available)
-    )
 
 # =========================
 # STATS
@@ -696,16 +696,72 @@ async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 # =========================
-# SWORD SHOP - FIX: این تابع وجود نداشت ولی handler ثبت شده بود!
+# SWORD SHOP - FIX: قبلاً همه‌ی شمشیرها توی یه پیام تکست تنها ساخته می‌شدن.
+# تلگرام سقف ۴۰۹۶ کاراکتر برای هر پیام داره؛ با اضافه شدن شمشیرهای زیاد،
+# اون پیام رد می‌شد و ارسالش خطا می‌داد (کرش این دستور). الان فروشگاه
+# شمشیر صفحه‌بندی (pagination) شده: هر صفحه فقط چندتا شمشیر نشون می‌ده و
+# با دکمه‌های ⬅️/➡️ می‌شه بین صفحه‌ها رفت. این یعنی فرقی نمی‌کنه چندتا
+# شمشیر توی SWORDS_SHOP باشه (۱۰تا یا ۱۰۰۰تا)، هیچ‌وقت این دستور کرش
+# نمی‌کنه.
 # =========================
+SWORDS_PER_PAGE = 8
+
+
+def _sword_shop_total_pages() -> int:
+    return max(1, (len(SWORDS_SHOP) + SWORDS_PER_PAGE - 1) // SWORDS_PER_PAGE)
+
+
+def _sword_shop_page_text(page: int) -> str:
+    names = list(SWORDS_SHOP.keys())
+    total_pages = _sword_shop_total_pages()
+    page = max(0, min(page, total_pages - 1))
+    start = page * SWORDS_PER_PAGE
+    chunk = names[start:start + SWORDS_PER_PAGE]
+
+    text = f"⚔️ فروشگاه شمشیر (صفحه {page + 1}/{total_pages} | مجموع {len(SWORDS_SHOP)} شمشیر)\n\n"
+    for name in chunk:
+        sword = SWORDS_SHOP[name]
+        text += f"🗡️ {name}\n   ATK: +{sword['attack']} | {sword['price']} 💰\n   {sword.get('description', '')}\n\n"
+    text += "برای خرید: /buy [نام شمشیر]"
+    return text
+
+
+def _sword_shop_keyboard(page: int) -> InlineKeyboardMarkup:
+    total_pages = _sword_shop_total_pages()
+    page = max(0, min(page, total_pages - 1))
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"swdpg_{page - 1}"))
+    nav_row.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="swdpg_noop"))
+    if page < total_pages - 1:
+        nav_row.append(InlineKeyboardButton("بعدی ➡️", callback_data=f"swdpg_{page + 1}"))
+    return InlineKeyboardMarkup([nav_row])
+
+
 async def sword_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     online_users[user.id] = user.first_name
-    text = "⚔️ فروشگاه شمشیر:\n\n"
-    for name, sword in SWORDS_SHOP.items():
-        text += f"🗡️ {name}\n   ATK: +{sword['attack']} | {sword['price']} 💰\n   {sword.get('description', '')}\n\n"
-    text += "برای خرید: /buy [نام شمشیر]"
-    await update.message.reply_text(text)
+    await update.message.reply_text(
+        _sword_shop_page_text(0),
+        reply_markup=_sword_shop_keyboard(0)
+    )
+
+
+async def sword_shop_page_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """دکمه‌های ⬅️ قبلی / بعدی ➡️ صفحه‌بندی فروشگاه شمشیر."""
+    query = update.callback_query
+    await query.answer()
+    if query.data == "swdpg_noop":
+        return  # دکمه‌ی شماره صفحه، فقط نمایشیه و کاری نمی‌کنه
+    try:
+        page = int(query.data.replace("swdpg_", ""))
+    except ValueError:
+        return
+    await query.edit_message_text(
+        _sword_shop_page_text(page),
+        reply_markup=_sword_shop_keyboard(page)
+    )
+
 
 # =========================
 # SHIP SHOP
@@ -995,6 +1051,19 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ به {dest} سفر کردی!")
 
 # =========================
+# DAILY - FIX: این دستور توی /start، /help و چندجای دیگه بهش اشاره می‌شد
+# (و توی database.py حتی ستون last_daily براش آماده شده بود) ولی هیچ
+# handler واقعی‌ای نداشت؛ یعنی /daily اصلاً کار نمی‌کرد. منطق واقعیش توی
+# daily.py پیاده‌سازی شده و وضعیت claim توی دیتابیس ذخیره می‌شه (نه حافظه‌ی
+# بات)، پس با ری‌استارت/آپدیت بات هم پاک نمی‌شه.
+# =========================
+async def daily_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    result = claim_daily(user.id)
+    await update.message.reply_text(result)
+
+# =========================
 # UPGRADE
 # =========================
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1123,7 +1192,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/daily - جایزه روزانه\n"
         "/rank - رتبه‌بندی\n"
         "/raid - نبرد Raid Boss (Big Mom / Kaido / Blackbeard)"
-    )
+        )
 
 # =========================
 # APP SETUP
@@ -1163,6 +1232,7 @@ app.add_handler(CommandHandler("upgrade_hp", upgrade_hp))
 app.add_handler(CommandHandler("upgrade_attack", upgrade_attack))
 app.add_handler(CommandHandler("upgrade_defense", upgrade_defense))
 app.add_handler(CommandHandler("upgrade_speed", upgrade_speed))
+app.add_handler(CommandHandler("daily", daily_cmd))
 app.add_handler(CommandHandler("rank", rank))
 app.add_handler(CommandHandler("help", help_cmd))
 
@@ -1172,5 +1242,6 @@ app.add_handler(CallbackQueryHandler(pick_character_callback, pattern=r"^pick_")
 app.add_handler(CallbackQueryHandler(fight_callback, pattern=r"^fight_"))
 app.add_handler(CallbackQueryHandler(fight_attack_callback, pattern=r"^atk_"))
 app.add_handler(CallbackQueryHandler(raid_callback, pattern=r"^raid_"))
+app.add_handler(CallbackQueryHandler(sword_shop_page_callback, pattern=r"^swdpg_"))
 print("🏴‍☠️ Bot Online - One Piece RPG")
 app.run_polling()
