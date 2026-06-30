@@ -1,6 +1,15 @@
+# fight_pvp.py
+#
+# توجه: این فایل یه سیستم فایت ساده‌ی جایگزینه که در main.py استفاده
+# نمی‌شه (main.py از fight.py + SKILL_DB برای PVP استفاده می‌کنه که
+# اسکیل‌های واقعی شخصیت‌ها رو در نظر می‌گیره). این فایل به عنوان یه
+# ابزار مستقل نگه داشته شده (مثلاً برای ساخت یه حالت "تمرین در برابر
+# دشمن فرضی" در آینده) و باگ‌هاش فیکس شدن تا اگه خواستی ازش استفاده
+# کنی کار کنه.
+
 from database import db, cursor
 import random
-import asyncio
+
 
 # =========================
 # GET PLAYER FULL DATA
@@ -32,8 +41,8 @@ def update_hp(user_id, hp):
 def calc_damage(base_damage, form_multiplier):
     crit = random.randint(1, 100)
     crit_mult = 2 if crit > 90 else 1
-    damage = base_damage * form_multiplier * crit_mult
-    return int(damage), crit_mult
+    damage = base_damage * (form_multiplier or 1.0) * crit_mult
+    return max(1, int(damage)), crit_mult
 
 
 # =========================
@@ -48,7 +57,7 @@ def save_fight(user_id, enemy, result, xp, money):
 
 
 # =========================
-# PVP FIGHT
+# PVP FIGHT (vs NPC با دمیج ثابت)
 # =========================
 def fight(user_id, enemy_name, player_skill_damage):
     player = get_player(user_id)
@@ -58,6 +67,9 @@ def fight(user_id, enemy_name, player_skill_damage):
 
     player_hp, player_max_hp, level, form, multiplier = player
 
+    if player_hp <= 0:
+        return "❌ HP نداری! از /daily استفاده کن."
+
     enemy_hp = 1000 + (level * 100)
 
     log = []
@@ -66,7 +78,8 @@ def fight(user_id, enemy_name, player_skill_damage):
 
     turn = 1
 
-    while player_hp > 0 and enemy_hp > 0:
+    # FIX: سقف turn برای جلوگیری از loop خیلی طولانی
+    while player_hp > 0 and enemy_hp > 0 and turn <= 100:
 
         dmg, crit = calc_damage(player_skill_damage, multiplier)
         enemy_hp -= dmg
@@ -81,16 +94,22 @@ def fight(user_id, enemy_name, player_skill_damage):
 
         turn += 1
 
-    if player_hp > 0:
+    if enemy_hp <= 0:
         result = "WIN"
         xp = 50 + level * 10
         money = 100 + level * 20
         msg = "🏆 YOU WIN!"
-    else:
+    elif player_hp <= 0:
         result = "LOSE"
         xp = 10
         money = 20
         msg = "💀 YOU LOSE!"
+    else:
+        # FIX: حالت timeout قبلاً به اشتباه همیشه "برد" حساب می‌شد
+        result = "LOSE"
+        xp = 10
+        money = 20
+        msg = "⏱️ وقت تموم شد! دوباره امتحان کن."
 
     save_fight(user_id, enemy_name, result, xp, money)
     update_hp(user_id, max(0, player_hp))
