@@ -1,5 +1,5 @@
 characters = {
-    # ─── شخصیت‌های قبلی ───────────────────────────────────────────────
+    # ─── شخصیت‌های اصلی ───────────────────────────────────────────────
     "Monkey D. Luffy":              {"stats": {"hp": 500, "attack": 160, "defense": 100, "speed": 140}},
     "Roronoa Zoro":                 {"stats": {"hp": 480, "attack": 170, "defense": 110, "speed": 120}},
     "Vinsmoke Sanji":               {"stats": {"hp": 460, "attack": 155, "defense": 100, "speed": 150}},
@@ -24,14 +24,12 @@ characters = {
     "Saint Shepherd Ju Peter":      {"stats": {"hp": 760, "attack": 210, "defense": 175, "speed": 120}},
     "Saint Marcus Mars":            {"stats": {"hp": 750, "attack": 205, "defense": 170, "speed": 145}},
 
-    # ─── ۳۰ شخصیت جدید ───────────────────────────────────────────────
-
-    # Yonko / سابق Yonko
+    # ─── Yonko / سابق Yonko ───────────────────────────────────────────
     "Kaido":                        {"stats": {"hp": 1000, "attack": 260, "defense": 220, "speed": 130}},
     "Charlotte Linlin":             {"stats": {"hp": 950,  "attack": 245, "defense": 210, "speed": 115}},
     "Edward Newgate":               {"stats": {"hp": 980,  "attack": 255, "defense": 215, "speed": 120}},
 
-    # Yonko Commanders / مهم‌ترین سردسته‌ها
+    # ─── Commanders / Supernovas ──────────────────────────────────────
     "Boa Hancock":                  {"stats": {"hp": 540,  "attack": 182, "defense": 145, "speed": 160}},
     "Portgas D. Ace":               {"stats": {"hp": 500,  "attack": 175, "defense": 130, "speed": 155}},
     "Sabo":                         {"stats": {"hp": 510,  "attack": 178, "defense": 135, "speed": 150}},
@@ -43,35 +41,36 @@ characters = {
     "Doflamingo":                   {"stats": {"hp": 580,  "attack": 188, "defense": 150, "speed": 140}},
     "Issho":                        {"stats": {"hp": 560,  "attack": 178, "defense": 145, "speed": 120}},
 
-    # Charlotte Family
+    # ─── Charlotte Family ─────────────────────────────────────────────
     "Charlotte Smoothie":           {"stats": {"hp": 530,  "attack": 172, "defense": 142, "speed": 125}},
     "Charlotte Cracker":            {"stats": {"hp": 510,  "attack": 168, "defense": 148, "speed": 120}},
     "Charlotte Perospero":          {"stats": {"hp": 490,  "attack": 162, "defense": 135, "speed": 130}},
 
-    # Kaido's Forces
+    # ─── Kaido's Forces ───────────────────────────────────────────────
     "King":                         {"stats": {"hp": 580,  "attack": 192, "defense": 155, "speed": 145}},
     "Queen":                        {"stats": {"hp": 560,  "attack": 185, "defense": 148, "speed": 130}},
     "Jack":                         {"stats": {"hp": 540,  "attack": 178, "defense": 145, "speed": 120}},
 
-    # Roger Pirates / Whitebeard Pirates
+    # ─── Roger Pirates / Whitebeard Pirates ───────────────────────────
     "Scopper Gaban":                {"stats": {"hp": 550,  "attack": 180, "defense": 148, "speed": 135}},
     "Kozuki Toki":                  {"stats": {"hp": 430,  "attack": 155, "defense": 120, "speed": 130}},
     "Vista":                        {"stats": {"hp": 490,  "attack": 170, "defense": 135, "speed": 138}},
 
-    # Marines / CP0
+    # ─── Marines / CP0 ────────────────────────────────────────────────
     "Smoker":                       {"stats": {"hp": 490,  "attack": 165, "defense": 140, "speed": 130}},
     "Coby":                         {"stats": {"hp": 460,  "attack": 158, "defense": 125, "speed": 145}},
     "Rob Lucci":                    {"stats": {"hp": 530,  "attack": 176, "defense": 142, "speed": 155}},
     "Kaku":                         {"stats": {"hp": 480,  "attack": 162, "defense": 130, "speed": 148}},
 
-    # Supernova / Other Pirates
-    "Basil Hawkins":                {"stats": {"hp": 480,  "attack": 163, "defense":  130}},
+    # ─── Supernova / Other Pirates ────────────────────────────────────
+    # FIX: Basil Hawkins داشت speed نداشت → KeyError در battle
+    "Basil Hawkins":                {"stats": {"hp": 480,  "attack": 163, "defense": 130, "speed": 130}},
     "Scratchmen Apoo":              {"stats": {"hp": 460,  "attack": 158, "defense": 120, "speed": 138}},
     "Urouge":                       {"stats": {"hp": 500,  "attack": 165, "defense": 135, "speed": 125}},
     "X Drake":                      {"stats": {"hp": 490,  "attack": 168, "defense": 132, "speed": 135}},
     "Cavendish":                    {"stats": {"hp": 480,  "attack": 170, "defense": 128, "speed": 145}},
 
-    # Special / Legends
+    # ─── Special / Legends ────────────────────────────────────────────
     "Monkey D. Dragon":             {"stats": {"hp": 850,  "attack": 240, "defense": 195, "speed": 165}},
 }
 
