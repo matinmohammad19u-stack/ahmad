@@ -1,46 +1,39 @@
 from database import db, cursor
-from inventory import add_item
 
-SHOP_ITEMS = {
-    "Small Potion":   {"price": 50,   "type": "heal",  "heal": 50},
-    "Medium Potion":  {"price": 120,  "type": "heal",  "heal": 120},
-    "Large Potion":   {"price": 250,  "type": "heal",  "heal": 300},
-    "Training Boost": {"price": 300,  "type": "boost", "xp_multiplier": 2},
-    "Basic Ship":     {"price": 500,  "type": "ship",  "speed": 1, "durability": 1},
-    "Speed Ship":     {"price": 1200, "type": "ship",  "speed": 2, "durability": 1},
-    "War Ship":       {"price": 2500, "type": "ship",  "speed": 3, "durability": 3},
-}
-
-def get_money(user_id):
-    cursor.execute("SELECT money FROM players WHERE user_id=?", (user_id,))
-    result = cursor.fetchone()
-    return result[0] if result else 0
-
-def buy_item(user_id, item_name):
-    if item_name not in SHOP_ITEMS:
-        return "❌ این آیتم وجود ندارد"
-
-    item = SHOP_ITEMS[item_name]
-    price = item["price"]
-    money = get_money(user_id)
-
-    if money < price:
-        return "❌ پول کافی نداری"
-
+def get_inventory(user_id):
     cursor.execute("""
-        UPDATE players SET money = money - ? WHERE user_id = ?
-    """, (price, user_id))
+        SELECT item_name, item_type, quantity FROM inventory WHERE user_id = ?
+    """, (user_id,))
+    items = cursor.fetchall()
+    if not items:
+        return "🎒 Inventory خالیه"
+    result = "🎒 Inventory:\n"
+    for item_name, item_type, quantity in items:
+        result += f"- {item_name} ({item_type}) x{quantity}\n"
+    return result
 
-    if item["type"] == "ship":
-        cursor.execute("""
-            INSERT INTO ships (user_id, ship_name, speed, durability)
-            VALUES (?, ?, ?, ?)
-        """, (user_id, item_name, item["speed"], item["durability"]))
-        cursor.execute("""
-            UPDATE players SET current_ship = ? WHERE user_id = ?
-        """, (item_name, user_id))
-    else:
-        add_item(user_id, item_name, item["type"])
-
+def add_item(user_id, item_name, item_type, quantity=1):
+    cursor.execute("""
+        INSERT INTO inventory (user_id, item_name, item_type, quantity)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, item_name) DO UPDATE SET quantity = quantity + ?
+    """, (user_id, item_name, item_type, quantity, quantity))
     db.commit()
-    return f"✅ {item_name} خریداری شد!"
+
+def remove_item(user_id, item_name, quantity=1):
+    cursor.execute("""
+        SELECT quantity FROM inventory WHERE user_id = ? AND item_name = ?
+    """, (user_id, item_name))
+    item = cursor.fetchone()
+    if not item:
+        return "❌ آیتم پیدا نشد"
+    if item[0] < quantity:
+        return "❌ تعداد کافی نیست"
+    cursor.execute("""
+        UPDATE inventory SET quantity = quantity - ? WHERE user_id = ? AND item_name = ?
+    """, (quantity, user_id, item_name))
+    cursor.execute("""
+        DELETE FROM inventory WHERE user_id = ? AND item_name = ? AND quantity <= 0
+    """, (user_id, item_name))
+    db.commit()
+    return "✅ آیتم حذف شد"
