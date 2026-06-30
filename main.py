@@ -901,7 +901,7 @@ async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"{medal} @{username} | {char_display} | Lv{level}\n"
     await update.message.reply_text(text)
 
-    =========================
+# =========================
 # HELP
 # =========================
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
