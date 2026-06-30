@@ -1,43 +1,39 @@
 from database import db, cursor
-from swords_shop import SWORDS_SHOP
 
+def get_inventory(user_id):
+    cursor.execute("""
+        SELECT item_name, item_type, quantity FROM inventory WHERE user_id = ?
+    """, (user_id,))
+    items = cursor.fetchall()
+    if not items:
+        return "🎒 Inventory خالیه"
+    result = "🎒 Inventory:\n"
+    for item_name, item_type, quantity in items:
+        result += f"- {item_name} ({item_type}) x{quantity}\n"
+    return result
 
-def equip_weapon(user_id: int, item_name: str) -> str:
-    """تجهیز سلاح از inventory"""
-    cursor.execute(
-        "SELECT quantity FROM inventory WHERE user_id=? AND item_name=?",
-        (user_id, item_name)
-    )
-    row = cursor.fetchone()
-    if not row:
-        return "❌ این آیتم توی کیفت نیست!"
-
-    if item_name not in SWORDS_SHOP:
-        return "❌ این آیتم قابل تجهیز نیست!"
-
-    cursor.execute("SELECT character FROM players WHERE user_id=?", (user_id,))
-    char_row = cursor.fetchone()
-    char_name = char_row[0] if char_row else None
-
-    sword_attack = SWORDS_SHOP[item_name]["attack"]
-    bonus = int(sword_attack * 1.5) if char_name == "Roronoa Zoro" else sword_attack
-
-    cursor.execute("UPDATE players SET equipped_weapon=? WHERE user_id=?", (item_name, user_id))
+def add_item(user_id, item_name, item_type, quantity=1):
+    cursor.execute("""
+        INSERT INTO inventory (user_id, item_name, item_type, quantity)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, item_name) DO UPDATE SET quantity = quantity + ?
+    """, (user_id, item_name, item_type, quantity, quantity))
     db.commit()
 
-    zoro_note = " (⚡ Zoro Bonus x1.5!)" if char_name == "Roronoa Zoro" else ""
-    return f"✅ {item_name} تجهیز شد! ⚔️ ATK+{bonus}{zoro_note}"
-
-
-def unequip_weapon(user_id: int) -> str:
-    """برداشتن سلاح"""
-    cursor.execute("UPDATE players SET equipped_weapon=NULL WHERE user_id=?", (user_id,))
+def remove_item(user_id, item_name, quantity=1):
+    cursor.execute("""
+        SELECT quantity FROM inventory WHERE user_id = ? AND item_name = ?
+    """, (user_id, item_name))
+    item = cursor.fetchone()
+    if not item:
+        return "❌ آیتم پیدا نشد"
+    if item[0] < quantity:
+        return "❌ تعداد کافی نیست"
+    cursor.execute("""
+        UPDATE inventory SET quantity = quantity - ? WHERE user_id = ? AND item_name = ?
+    """, (quantity, user_id, item_name))
+    cursor.execute("""
+        DELETE FROM inventory WHERE user_id = ? AND item_name = ? AND quantity <= 0
+    """, (user_id, item_name))
     db.commit()
-    return "✅ سلاح برداشته شد."
-
-
-def get_equipped(user_id: int):
-    """گرفتن سلاح فعلی"""
-    cursor.execute("SELECT equipped_weapon FROM players WHERE user_id=?", (user_id,))
-    row = cursor.fetchone()
-    return row[0] if row else None
+    return "✅ آیتم حذف شد"
