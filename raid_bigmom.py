@@ -1,72 +1,85 @@
-from database import db, cursor
-from compute_damage import compute_damage
+# raid_bigmom.py
 import random
+from database import db, cursor
+from characters import characters
 
-def get_player(user_id):
-    cursor.execute("""
-        SELECT character, hp, max_hp, level, xp, money
-        FROM players WHERE user_id = ?
-    """, (user_id,))
-    return cursor.fetchone()
 
-def update_player(user_id, hp, money_gain):
-    cursor.execute("""
-        UPDATE players SET hp = ?, money = money + ?
-        WHERE user_id = ?
-    """, (hp, money_gain, user_id))
-    db.commit()
+def bigmom(user_id: int):
+    """
+    Raid: Big Mom (Charlotte Linlin)
+    برمی‌گردونه: (result_text, won_bool)
+    """
+    cursor.execute(
+        "SELECT character, hp, max_hp, level FROM players WHERE user_id=?",
+        (user_id,)
+    )
+    data = cursor.fetchone()
 
-def bigmom(user_id):
-    player = get_player(user_id)
-    if not player:
-        return "❌ پلیر پیدا نشد", False
+    if not data or not data[0]:
+        return "❌ شخصیت نداری!", False
 
-    character, p_hp, max_hp, level, xp, money = player
+    char_name, hp, max_hp, level = data
 
-    bm_hp = 1400 + level * 280
-    bm_attack = 110 + level * 22
-    bm_defense = 70 + level * 18
+    if hp <= 0:
+        return "❌ HP نداری! از /daily استفاده کن.", False
 
-    log = ["👑 RAID BOSS: BIG MOM STARTED!"]
+    char_stats = characters[char_name]["stats"]
+    player_attack = char_stats["attack"]
+    player_defense = char_stats["defense"]
 
-    while p_hp > 0 and bm_hp > 0:
+    # Big Mom Stats
+    boss_hp = 5000 + level * 200
+    boss_attack = 200 + level * 8
+    boss_defense = 150 + level * 3
 
-        damage, crit = compute_damage(
-            base_damage=85 + level * 18,
-            mastery=level * 3,
-            form_multiplier=1.4,
-            crit_chance=12,
-            enemy_defense=bm_defense
-        )
-        bm_hp -= damage
-        log.append(f"{'🔥 CRIT! ' if crit else '⚔️ '}شما {damage} به Big Mom زدی")
+    player_hp = hp
+    log = [
+        "👑 RAID BOSS: Charlotte Linlin (Big Mom)!",
+        f"❤️ Boss HP: {boss_hp}",
+        f"⚔️ تو: {char_name} | HP: {player_hp}",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+    ]
 
-        if bm_hp <= 0:
+    turn = 1
+    while player_hp > 0 and boss_hp > 0 and turn <= 25:
+        # حمله بازیکن
+        dmg = int((player_attack * random.uniform(0.9, 1.2)) - boss_defense * 0.2)
+        dmg = max(1, dmg)
+        boss_hp -= dmg
+        crit = random.random() < 0.1
+        if crit:
+            dmg = int(dmg * 1.5)
+            boss_hp -= dmg // 2
+            log.append(f"Turn {turn}: تو {dmg} 💥CRIT زدی!")
+        else:
+            log.append(f"Turn {turn}: تو {dmg} زدی به Big Mom")
+
+        if boss_hp <= 0:
             break
 
-        attack_type = random.randint(1, 100)
-        bm_damage = bm_attack
+        # حمله Boss
+        special = random.random() < 0.15
+        if special:
+            b_dmg = int(boss_attack * 2 * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: ⚡ Big Mom از Ikoku استفاده کرد! {b_dmg} DMG!")
+        else:
+            b_dmg = int((boss_attack - player_defense * 0.3) * random.uniform(0.8, 1.2))
+            b_dmg = max(1, b_dmg)
+            log.append(f"Turn {turn}: Big Mom {b_dmg} زد!")
 
-        if attack_type > 80:
-            bm_damage *= 2
-            log.append("👻 BIG MOM SOUL MODE!")
+        player_hp -= b_dmg
+        turn += 1
 
-        if attack_type < 15:
-            heal = 100 + level * 20
-            bm_hp += heal
-            log.append(f"💖 Big Mom healed {heal} HP!")
+    won = player_hp > 0
+    final_hp = max(1, player_hp) if won else max_hp  # اگه باخت HP ریست
 
-        bm_damage = max(1, bm_damage - (level * 2))
-        p_hp -= bm_damage
-        log.append(f"💀 Big Mom {bm_damage} دمیج زد")
+    cursor.execute("UPDATE players SET hp=? WHERE user_id=?", (final_hp, user_id))
+    db.commit()
 
-    if p_hp > 0:
-        money_gain = 180 + level * 35
-        update_player(user_id, max_hp, money_gain)
-        loot = random.choice(["Soul Fragment", "Homie Core", "Mythic Armor", "Big Mom Essence"])
-        log += ["\n🏆 YOU DEFEATED BIG MOM!", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
-        return "\n".join(log), True
+    log.append("━━━━━━━━━━━━━━━━━━━━━━")
+    if won:
+        log.append("🏆 Big Mom کشتی! Yonko رو شکست دادی!")
     else:
-        update_player(user_id, max_hp, 25)
-        log += ["\n☠️ YOU LOST AGAINST BIG MOM!", "❤️ HP restored"]
-        return "\n".join(log), False
+        log.append("💀 Big Mom پیروز شد! HP ریست شد.")
+
+    return "\n".join(log), won
