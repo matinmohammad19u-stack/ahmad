@@ -1,3 +1,12 @@
+# character_select.py
+#
+# توجه: این فایل یه ماژول کمکی مستقله که در main.py استفاده نمی‌شه
+# (main.py سیستم انتخاب دستی با دکمه‌های inline خودش رو داره که در
+# main.py به صورت کامل پیاده شده). این فایل برای حالتی نگه داشته شده
+# که بخوای یه روش "تصادفی" برای انتخاب شخصیت هم داشته باشی.
+# اجرا/import شدنش هیچ تداخلی با main.py نداره چون database.py
+# خودش جدول available_characters رو می‌سازه و پر می‌کنه.
+
 import random
 from characters import characters
 from database import db, cursor
@@ -17,7 +26,8 @@ if count == 0:
     db.commit()
 
 
-def assign_random_character(user_id: int):
+def assign_random_character(user_id: int, username: str = "no_username"):
+    """یه شخصیت تصادفی از بین شخصیت‌های باقی‌مونده به کاربر میده."""
     cursor.execute("SELECT character FROM players WHERE user_id=?", (user_id,))
     row = cursor.fetchone()
     if row and row[0]:
@@ -34,8 +44,15 @@ def assign_random_character(user_id: int):
     chosen = characters[chosen_name]
     hp = chosen["stats"]["hp"]
 
-    cursor.execute("INSERT OR IGNORE INTO players (user_id) VALUES (?)", (user_id,))
-    cursor.execute("UPDATE players SET character=?, hp=?, max_hp=? WHERE user_id=?", (chosen_name, hp, hp, user_id))
+    # FIX: قبلاً username موقع INSERT ست نمی‌شد
+    cursor.execute(
+        "INSERT OR IGNORE INTO players (user_id, username) VALUES (?, ?)",
+        (user_id, username)
+    )
+    cursor.execute(
+        "UPDATE players SET character=?, hp=?, max_hp=? WHERE user_id=?",
+        (chosen_name, hp, hp, user_id)
+    )
     cursor.execute("DELETE FROM available_characters WHERE name=?", (chosen_name,))
     db.commit()
 
