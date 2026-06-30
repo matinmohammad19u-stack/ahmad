@@ -1,4 +1,4 @@
- shop.py
+ #shop.py
 # FIX: قبلاً db = sqlite3.connect(...) خودش داشت که با database.py conflict می‌کرد
 
 from database import db, cursor
