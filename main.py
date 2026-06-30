@@ -212,7 +212,7 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🗡️ سلاح: {weapon or 'ندارم'}\n\n"
         f"🔄 فرم‌های موجود:\n" +
         "\n".join(f"  • {f}" for f in forms_available)
-
+    )
 # =========================
 # STATS
 # =========================
