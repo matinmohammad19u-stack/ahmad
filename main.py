@@ -939,37 +939,47 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("character", character))          # FIX: تابع اضافه شد
+app.add_handler(CommandHandler("character", character))
 app.add_handler(CommandHandler("character_select", character_select))
 app.add_handler(CommandHandler("stats", stats))
 app.add_handler(CommandHandler("profile", profile))
+
 app.add_handler(CommandHandler("fight", fight_cmd))
 app.add_handler(CommandHandler("boss", boss))
+
 app.add_handler(CommandHandler("shop", shop))
-app.add_handler(CommandHandler("sword_shop", sword_shop))       # FIX: تابع اضافه شد
+app.add_handler(CommandHandler("sword_shop", sword_shop))
 app.add_handler(CommandHandler("ship_shop", ship_shop))
 app.add_handler(CommandHandler("buy", buy))
+
 app.add_handler(CommandHandler("inventory", inventory))
 app.add_handler(CommandHandler("equip", equip))
+
 app.add_handler(CommandHandler("skills", skills))
 app.add_handler(CommandHandler("mastery", mastery))
-app.add_handler(CommandHandler("awaken", awaken))                # FIX: handler اضافه شد
-app.add_handler(CommandHandler("form", form_cmd))               # FIX: handler اضافه شد
+
+app.add_handler(CommandHandler("awaken", awaken))
+app.add_handler(CommandHandler("form", form_cmd))
+
 app.add_handler(CommandHandler("ship", ship))
+
 app.add_handler(CommandHandler("island", island))
 app.add_handler(CommandHandler("travel", travel))
+
 app.add_handler(CommandHandler("upgrade", upgrade))
 app.add_handler(CommandHandler("upgrade_hp", upgrade_hp))
 app.add_handler(CommandHandler("upgrade_attack", upgrade_attack))
 app.add_handler(CommandHandler("upgrade_defense", upgrade_defense))
 app.add_handler(CommandHandler("upgrade_speed", upgrade_speed))
+
 app.add_handler(CommandHandler("daily", daily))
 app.add_handler(CommandHandler("rank", rank))
 app.add_handler(CommandHandler("help", help_cmd))
-app.add_handler(CommandHandler("raid", raid))
-app.add_handler(CallbackQueryHandler(pick_character_callback, pattern="^pick_"))
-app.add_handler(CallbackQueryHandler(fight_callback, pattern="^fight_"))
-app.add_handler(CallbackQueryHandler(raid_callback, pattern="^raid_"))
 
+app.add_handler(CommandHandler("raid", raid))
+
+app.add_handler(CallbackQueryHandler(pick_character_callback, pattern=r"^pick_"))
+app.add_handler(CallbackQueryHandler(fight_callback, pattern=r"^fight_"))
+app.add_handler(CallbackQueryHandler(raid_callback, pattern=r"^raid_"))
 print("🏴‍☠️ Bot Online - One Piece RPG")
 app.run_polling()
