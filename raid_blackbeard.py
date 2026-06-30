@@ -1,76 +1,91 @@
-from database import db, cursor
-from compute_damage import compute_damage
+# raid_blackbeard.py
 import random
+from database import db, cursor
+from characters import characters
 
-def get_player(user_id):
-    cursor.execute("""
-        SELECT character, hp, max_hp, level, xp, money
-        FROM players WHERE user_id = ?
-    """, (user_id,))
-    return cursor.fetchone()
 
-def update_player(user_id, hp, money_gain):
-    cursor.execute("""
-        UPDATE players SET hp = ?, money = money + ?
-        WHERE user_id = ?
-    """, (hp, money_gain, user_id))
-    db.commit()
+def blackbeard(user_id: int):
+    """
+    Raid: Marshall D. Teach (Blackbeard)
+    برمی‌گردونه: (result_text, won_bool)
+    """
+    cursor.execute(
+        "SELECT character, hp, max_hp, level FROM players WHERE user_id=?",
+        (user_id,)
+    )
+    data = cursor.fetchone()
 
-def blackbeard(user_id):
-    player = get_player(user_id)
-    if not player:
-        return "❌ پلیر پیدا نشد", False
+    if not data or not data[0]:
+        return "❌ شخصیت نداری!", False
 
-    character, p_hp, max_hp, level, xp, money = player
+    char_name, hp, max_hp, level = data
 
-    bb_hp = 1600 + level * 300
-    bb_attack = 120 + level * 25
-    bb_defense = 60 + level * 15
+    if hp <= 0:
+        return "❌ HP نداری! از /daily استفاده کن.", False
 
-    log = ["☠️ RAID BOSS: BLACKBEARD STARTED!"]
+    char_stats = characters[char_name]["stats"]
+    player_attack = char_stats["attack"]
+    player_defense = char_stats["defense"]
 
-    while p_hp > 0 and bb_hp > 0:
+    # Blackbeard Stats - دو Devil Fruit داره!
+    boss_hp = 5500 + level * 220
+    boss_attack = 210 + level * 9
+    boss_defense = 160 + level * 3
 
-        damage, crit = compute_damage(
-            base_damage=90 + level * 20,
-            mastery=level * 3,
-            form_multiplier=1.5,
-            crit_chance=12,
-            enemy_defense=bb_defense
-        )
-        bb_hp -= damage
-        log.append(f"{'🔥 CRIT! ' if crit else '⚔️ '}شما {damage} به Blackbeard زدی")
+    player_hp = hp
+    log = [
+        "☠️ RAID BOSS: Marshall D. Teach (Blackbeard)!",
+        f"💀 Boss HP: {boss_hp}",
+        f"⚔️ تو: {char_name} | HP: {player_hp}",
+        "⚠️ Blackbeard دو Devil Fruit داره: Yami Yami & Gura Gura!",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+    ]
 
-        if bb_hp <= 0:
+    yami_active = False
+    turn = 1
+    while player_hp > 0 and boss_hp > 0 and turn <= 25:
+        # حمله بازیکن
+        # Yami Yami: هاکی بازیکن رو خنثی می‌کنه
+        if yami_active:
+            dmg = int((player_attack * 0.7 * random.uniform(0.8, 1.0)) - boss_defense * 0.2)
+            log.append(f"Turn {turn}: Yami Yami هاکیت رو خنثی کرد! {max(1, dmg)} زدی")
+        else:
+            dmg = int((player_attack * random.uniform(0.9, 1.2)) - boss_defense * 0.2)
+            log.append(f"Turn {turn}: تو {max(1, dmg)} زدی به Blackbeard")
+
+        boss_hp -= max(1, dmg)
+        yami_active = False
+
+        if boss_hp <= 0:
             break
 
-        attack_type = random.randint(1, 100)
-        bb_damage = bb_attack
+        # حمله Boss
+        attack_type = random.randint(1, 3)
+        if attack_type == 1:
+            b_dmg = int(boss_attack * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: Black Hole! {b_dmg} DMG!")
+        elif attack_type == 2:
+            b_dmg = int(boss_attack * 1.4 * random.uniform(0.9, 1.1))
+            log.append(f"Turn {turn}: 🌍 Gura Gura! Quake Punch: {b_dmg} DMG!")
+        else:
+            b_dmg = int(boss_attack * 0.5)
+            yami_active = True
+            log.append(f"Turn {turn}: ☠️ Yami Yami فعال شد! دفعه بعد هاکیت کار نمی‌کنه. {b_dmg} DMG")
 
-        if attack_type > 80:
-            bb_damage *= 2
-            log.append("🌑 BLACKBEARD DARK DARK MODE!")
+        b_dmg = max(1, int(b_dmg - player_defense * 0.3))
+        player_hp -= b_dmg
+        turn += 1
 
-        if attack_type < 15:
-            log.append("💀 Blackbeard قدرتت رو نالیفای کرد! دمیج نصف شد")
-            damage = damage // 2
+    won = player_hp > 0
+    final_hp = max(1, player_hp) if won else max_hp
 
-        if attack_type > 90:
-            quake = random.randint(50, 150)
-            p_hp -= quake
-            log.append(f"🌊 TREMOR TREMOR! {quake} دمیج اضافه!")
+    cursor.execute("UPDATE players SET hp=? WHERE user_id=?", (final_hp, user_id))
+    db.commit()
 
-        bb_damage = max(1, bb_damage - (level * 2))
-        p_hp -= bb_damage
-        log.append(f"💀 Blackbeard {bb_damage} دمیج زد")
-
-    if p_hp > 0:
-        money_gain = 200 + level * 40
-        update_player(user_id, max_hp, money_gain)
-        loot = random.choice(["Dark Fragment", "Tremor Core", "Yami Yami Shard", "Blackbeard Essence"])
-        log += ["\n🏆 YOU DEFEATED BLACKBEARD!", f"💰 Money +{money_gain}", f"🎁 Loot: {loot}"]
-        return "\n".join(log), True
+    log.append("━━━━━━━━━━━━━━━━━━━━━━")
+    if won:
+        log.append("🏆 Blackbeard شکست خورد! دو Devil Fruit رو شکست دادی!")
     else:
-        update_player(user_id, max_hp, 25)
-        log += ["\n☠️ YOU LOST AGAINST BLACKBEARD!", "❤️ HP restored"]
-        return "\n".join(log), False
+        log.append("💀 Blackbeard پیروز شد! HP ریست شد.")
+
+    return "\n".join(log), won
