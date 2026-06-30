@@ -1155,8 +1155,6 @@ app.add_handler(CommandHandler("upgrade_hp", upgrade_hp))
 app.add_handler(CommandHandler("upgrade_attack", upgrade_attack))
 app.add_handler(CommandHandler("upgrade_defense", upgrade_defense))
 app.add_handler(CommandHandler("upgrade_speed", upgrade_speed))
-
-app.add_handler(CommandHandler("daily", daily))
 app.add_handler(CommandHandler("rank", rank))
 app.add_handler(CommandHandler("help", help_cmd))
 
