@@ -1,5 +1,3 @@
-# islands.py
-
 islands = {
     # =========================
     # 1. East Blue
