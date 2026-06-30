@@ -1,4 +1,4 @@
- swords_shop.py
+#swords_shop.py
 # FIX: این فایل وجود نداشت و باعث crash بات می‌شد
 
 SWORDS_SHOP = {
