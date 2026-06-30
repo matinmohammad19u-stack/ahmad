@@ -12,7 +12,7 @@ from ship_system import ships                        # FIX: ship_system نه shi
 from swords_shop import SWORDS_SHOP                  # FIX: فایل ساخته شد
 from islands import islands
 from raid_handler import raid, raid_callback          # FIX: raid files ساخته شدن
-from fight import battle                              # FIX: import فراموش شده بود
+from fight import create_battle, apply_action, get_actions  # تبدیل به Button Battle
 from compute_damage import compute_damage             # FIX: برای mastery scaling در boss
 import os
 import random
@@ -24,6 +24,44 @@ TOKEN = os.environ.get("TOKEN")
 # آنلاین یوزرها
 # =========================
 online_users = {}
+
+# =========================
+# فایت‌های فعال (Button Battle)
+# هر فایت یه battle_id داره. active_battles نگه‌دارنده‌ی کامل state
+# (از fight.py) + متادیتای تلگرام (آیدی/چت دو طرف). user_in_battle
+# برای جلوگیری از اینه که یه نفر همزمان توی دو فایت باشه.
+# =========================
+active_battles = {}
+user_in_battle = {}
+_battle_id_counter = {"n": 0}
+
+
+def _new_battle_id():
+    _battle_id_counter["n"] += 1
+    return str(_battle_id_counter["n"])
+
+
+def _skill_keyboard(battle_id, skills):
+    buttons = []
+    for idx, sk in enumerate(skills):
+        dmg_label = f"{sk['damage']} دمیج" if sk.get("damage") else "Utility"
+        buttons.append([
+            InlineKeyboardButton(f"💥 {sk['name']} ({dmg_label})", callback_data=f"atk_{battle_id}_{idx}")
+        ])
+    return InlineKeyboardMarkup(buttons)
+
+
+def _hp_line(state):
+    f1 = state["fighters"]["p1"]
+    f2 = state["fighters"]["p2"]
+    return f"❤️ {f1['name']}: {f1['hp']}/{f1['max_hp']} | {f2['name']}: {f2['hp']}/{f2['max_hp']}"
+
+
+def _cleanup_battle(battle_id):
+    battle = active_battles.pop(battle_id, None)
+    if battle:
+        user_in_battle.pop(battle["p1_id"], None)
+        user_in_battle.pop(battle["p2_id"], None)
 
 # =========================
 # START
@@ -242,7 +280,12 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
-# FIGHT (PVP آنلاین)
+# FIGHT (PVP آنلاین) — Button Battle
+# تغییر اصلی: قبلاً فایت یه‌جا اتوماتیک شبیه‌سازی می‌شد (اسکیل‌های رندوم
+# برای هر دو طرف) و فقط یه لاگ متنی نشون داده می‌شد؛ پلیر هیچ نقشی توی
+# نتیجه نداشت. الان فایت نوبتی شده: هر کی نوبتشه یه پیام با دکمه‌ی
+# اسکیل‌هاش می‌گیره، خودش انتخاب می‌کنه، و نتیجه برای هر دو طرف فرستاده
+# می‌شه تا نوبت بعدی برسه.
 # =========================
 async def fight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -255,9 +298,17 @@ async def fight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data[1] <= 0:
         await update.message.reply_text("❌ HP نداری! از /daily استفاده کن.")
         return
-    enemies = {uid: name for uid, name in online_users.items() if uid != user.id}
+    # FIX: اگه خودت وسط یه فایت دیگه‌ای، نباید بتونی همزمان یه فایت جدید شروع کنی
+    if user.id in user_in_battle:
+        await update.message.reply_text("❌ تو همین الان وسط یه مبارزه‌ای! اول اون رو تموم کن.")
+        return
+    # FIX: کسایی که خودشون وسط یه فایت دیگه‌ان از لیست حریف‌های قابل‌انتخاب حذف می‌شن
+    enemies = {
+        uid: name for uid, name in online_users.items()
+        if uid != user.id and uid not in user_in_battle
+    }
     if not enemies:
-        await update.message.reply_text("❌ بازیکن آنلاین دیگه‌ای نیست!")
+        await update.message.reply_text("❌ بازیکن آنلاین و آزاد دیگه‌ای نیست!")
         return
     keyboard = [
         [InlineKeyboardButton(f"⚔️ {name}", callback_data=f"fight_{uid}")]
@@ -265,11 +316,23 @@ async def fight_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text("⚔️ با کی میخوای بجنگی؟", reply_markup=InlineKeyboardMarkup(keyboard))
 
+
 async def fight_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """انتخاب حریف → ساخت مبارزه و فرستادن دکمه‌ی اولین نوبت."""
     query = update.callback_query
     await query.answer()
     user = query.from_user
     enemy_id = int(query.data.replace("fight_", ""))
+
+    if enemy_id == user.id:
+        await query.edit_message_text("❌ نمی‌تونی با خودت بجنگی!")
+        return
+    if user.id in user_in_battle:
+        await query.edit_message_text("❌ تو همین الان وسط یه مبارزه‌ای!")
+        return
+    if enemy_id in user_in_battle:
+        await query.edit_message_text("❌ این بازیکن الان وسط یه مبارزه‌ی دیگه‌ست.")
+        return
 
     cursor.execute(
         "SELECT character, hp, extra_attack, extra_defense, extra_speed, equipped_weapon, current_form FROM players WHERE user_id=?",
@@ -304,8 +367,7 @@ async def fight_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     p2_data["stats"]["defense"] += p2[3]
     p2_data["stats"]["speed"] += p2[4]
 
-    # FIX: قبلاً سلاح تجهیزشده فقط توی /stats نشون داده می‌شد ولی روی فایت واقعی
-    # هیچ تاثیری نداشت! الان واقعاً توی محاسبه دمیج اعمال می‌شه.
+    # سلاح تجهیزشده توی محاسبه‌ی دمیج اعمال می‌شه
     if p1[5] and p1[5] in SWORDS_SHOP:
         bonus = SWORDS_SHOP[p1[5]]["attack"]
         bonus = int(bonus * 1.5) if p1[0] == "Roronoa Zoro" else bonus
@@ -315,44 +377,193 @@ async def fight_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bonus = int(bonus * 1.5) if p2[0] == "Roronoa Zoro" else bonus
         p2_data["stats"]["attack"] += bonus
 
-    # FIX: قبلاً battle() همیشه از فرم Base استفاده می‌کرد و /form هیچ
-    # تاثیری روی PVP نداشت! حالا فرم واقعی هر بازیکن پاس داده می‌شه.
     p1_form = p1[6] or "Base"
     p2_form = p2[6] or "Base"
 
-    # FIX: battle حالا final_hp1, final_hp2, skills_used هم برمی‌گردونه
-    log, winner, earned_money, final_hp1, final_hp2, skills_used = battle(
-        p1_data, p2_data, SKILL_DB, p1_form, p2_form
+    state = create_battle(p1_data, p2_data, SKILL_DB, p1_form, p2_form)
+    battle_id = _new_battle_id()
+    battle = {
+        "state": state,
+        "p1_id": user.id,
+        "p2_id": enemy_id,
+        "p1_char": p1[0],
+        "p2_char": p2[0],
+        "p1_chat_id": query.message.chat_id,
+        "p2_chat_id": enemy_id,  # توی چت خصوصی، chat_id همون user_id ـه
+    }
+
+    intro = "\n".join(state["log"])
+    turn_side = state["turn"]
+    turn_user_name = p1[0] if turn_side == "p1" else p2[0]
+
+    try:
+        if turn_side == "p1":
+            await query.edit_message_text(
+                f"{intro}\n\n🎯 نوبت توعه! یه اسکیل انتخاب کن:",
+                reply_markup=_skill_keyboard(battle_id, get_actions(state, "p1"))
+            )
+            await context.bot.send_message(
+                chat_id=battle["p2_chat_id"],
+                text=f"{intro}\n\n⏳ {turn_user_name} داره فکر می‌کنه... صبر کن نوبتت بشه."
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=battle["p2_chat_id"],
+                text=f"{intro}\n\n🎯 نوبت توعه! یه اسکیل انتخاب کن:",
+                reply_markup=_skill_keyboard(battle_id, get_actions(state, "p2"))
+            )
+            await query.edit_message_text(
+                f"{intro}\n\n⏳ {turn_user_name} سریع‌تر بود و اول حمله می‌کنه. صبر کن..."
+            )
+    except Exception:
+        # FIX: اگه نشه به طرف مقابل پیام داد (مثلاً بات رو بلاک کرده)، مبارزه
+        # اصلاً ثبت نمی‌شه و کسی توی state گیر نمی‌کنه
+        await query.edit_message_text("❌ نشد به حریف پیام بدم (شاید بات رو بلاک کرده). مبارزه لغو شد.")
+        return
+
+    active_battles[battle_id] = battle
+    user_in_battle[user.id] = battle_id
+    user_in_battle[enemy_id] = battle_id
+
+
+async def fight_attack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """وقتی یکی از طرفین روی دکمه‌ی یه اسکیل می‌زنه."""
+    query = update.callback_query
+    user = query.from_user
+
+    parts = query.data.split("_")
+    if len(parts) != 3:
+        await query.answer("❌ دکمه نامعتبره.", show_alert=True)
+        return
+    _, battle_id, skill_idx_str = parts
+    try:
+        skill_idx = int(skill_idx_str)
+    except ValueError:
+        await query.answer("❌ دکمه نامعتبره.", show_alert=True)
+        return
+
+    battle = active_battles.get(battle_id)
+    if not battle:
+        await query.answer("⚠️ این مبارزه دیگه فعال نیست.", show_alert=True)
+        try:
+            await query.edit_message_text("⚠️ این مبارزه قبلاً تموم شده یا منقضی شده.")
+        except Exception:
+            pass
+        return
+
+    if user.id == battle["p1_id"]:
+        side = "p1"
+    elif user.id == battle["p2_id"]:
+        side = "p2"
+    else:
+        await query.answer("❌ این مبارزه‌ی تو نیست!", show_alert=True)
+        return
+
+    state = battle["state"]
+
+    if state["finished"]:
+        await query.answer("⚠️ این مبارزه تموم شده.", show_alert=True)
+        return
+
+    if state["turn"] != side:
+        await query.answer("⏳ نوبت تو نیست! صبر کن طرف مقابل حمله کنه.", show_alert=True)
+        return
+
+    await query.answer()
+
+    try:
+        result = apply_action(state, side, skill_idx)
+    except ValueError:
+        await query.answer("❌ این حرکت دیگه معتبر نیست.", show_alert=True)
+        return
+
+    other_side = "p2" if side == "p1" else "p1"
+    other_chat_id = battle["p2_chat_id"] if side == "p1" else battle["p1_chat_id"]
+
+    attacker_name = state["fighters"][side]["name"]
+    defender_name = state["fighters"][other_side]["name"]
+    crit_text = " 💥 CRIT!" if result["crit"] else ""
+
+    turn_summary = (
+        f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد → {result['damage']} دمیج{crit_text}\n"
+        f"{_hp_line(state)}"
     )
 
-    # FIX: قبلاً اگه p1 می‌باخت، برنده‌ی واقعی (p2/حریف) هیچ جایزه‌ای نمی‌گرفت!
-    # و سطح‌بندی PvP باید +5 باشه (هماهنگ با بقیه‌ی بات)، نه +1
-    if winner == p1[0]:
-        cursor.execute(
-            "UPDATE players SET level=level+5, money=money+?, hp=? WHERE user_id=?",
-            (earned_money, max(1, final_hp1), user.id)
-        )
-        cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (enemy_id,))
-    else:
-        cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (user.id,))
-        cursor.execute(
-            "UPDATE players SET level=level+5, money=money+?, hp=? WHERE user_id=?",
-            (earned_money, max(1, final_hp2), enemy_id)
-        )
+    if not result["finished"]:
+        # نوبت میره طرف مقابل
+        await query.edit_message_text(f"✅ تو زدی!\n\n{turn_summary}\n\n⏳ منتظر نوبتت بمون...")
+        next_side = state["turn"]
+        try:
+            await context.bot.send_message(
+                chat_id=other_chat_id,
+                text=f"{turn_summary}\n\n🎯 نوبت توعه! یه اسکیل انتخاب کن:",
+                reply_markup=_skill_keyboard(battle_id, get_actions(state, next_side))
+            )
+        except Exception:
+            # FIX: اگه نشه به نفر بعدی پیام داد، مبارزه‌ای که قراره گیر کنه رو
+            # به جای ابدی موندن توی active_battles، می‌بندیم تا کسی قفل نشه
+            _cleanup_battle(battle_id)
+            await query.edit_message_text(
+                f"✅ تو زدی!\n\n{turn_summary}\n\n⚠️ نشد به حریف پیام بدم، مبارزه متوقف شد."
+            )
+        return
 
+    # ---------- مبارزه تموم شد ----------
+    winner_side = result["winner"]
+    loser_side = "p2" if winner_side == "p1" else "p1"
+    winner_id = battle["p1_id"] if winner_side == "p1" else battle["p2_id"]
+    loser_id = battle["p2_id"] if winner_side == "p1" else battle["p1_id"]
+    winner_char = battle["p1_char"] if winner_side == "p1" else battle["p2_char"]
+    loser_char = battle["p2_char"] if winner_side == "p1" else battle["p1_char"]
+    earned_money = result["earned_money"]
+    winner_hp = max(1, state["fighters"][winner_side]["hp"])
+
+    # FIX: برنده +5 لول و جایزه می‌گیره، HP باقیمونده‌ش ثبت می‌شه؛
+    # بازنده HP ـش ریست به max_hp می‌شه (مثل نسخه‌ی قبلی)
+    cursor.execute(
+        "UPDATE players SET level=level+5, money=money+?, hp=? WHERE user_id=?",
+        (earned_money, winner_hp, winner_id)
+    )
+    cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (loser_id,))
+
+    # FIX: قبلاً فقط برای کسی که /fight رو زده بود fight_history ثبت می‌شد و
+    # برد/باخت حریف هیچوقت توی /profile اون یکی نفر دیده نمی‌شد. الان برای
+    # هر دو طرف ثبت می‌شه.
     cursor.execute("""
         INSERT INTO fight_history (user_id, enemy, result, reward_xp, reward_money)
         VALUES (?, ?, ?, ?, ?)
-    """, (user.id, p2[0], "WIN" if winner == p1[0] else "LOSE", 0, earned_money))
+    """, (winner_id, loser_char, "WIN", 0, earned_money))
+    cursor.execute("""
+        INSERT INTO fight_history (user_id, enemy, result, reward_xp, reward_money)
+        VALUES (?, ?, ?, ?, ?)
+    """, (loser_id, winner_char, "LOSE", 0, 0))
 
-    # FIX: مستری اسکیل‌های استفاده‌شده آپدیت می‌شه (قبلاً هیچوقت آپدیت نمی‌شد،
-    # یعنی /skills و /mastery همیشه قفل و صفر می‌موندن!)
-    mastery_rate = 3 if winner == p1[0] else 1
-    for skill_name, count in skills_used.items():
-        add_mastery(user.id, p1[0], skill_name, amount=mastery_rate * count)
+    # FIX: مستری اسکیل‌های هر دو طرف آپدیت می‌شه (قبلاً فقط طرف اول)
+    for skill_name, count in state["fighters"]["p1"]["skills_used"].items():
+        rate = 3 if winner_side == "p1" else 1
+        add_mastery(battle["p1_id"], battle["p1_char"], skill_name, amount=rate * count)
+    for skill_name, count in state["fighters"]["p2"]["skills_used"].items():
+        rate = 3 if winner_side == "p2" else 1
+        add_mastery(battle["p2_id"], battle["p2_char"], skill_name, amount=rate * count)
 
     db.commit()
-    await query.edit_message_text("\n".join(log)[:4000])
+    _cleanup_battle(battle_id)
+
+    timeout_note = "⏱️ سقف راندها رسید! بر اساس HP باقیمونده برنده مشخص شد.\n\n" if result["timeout"] else ""
+
+    def _outcome(viewer_side):
+        if viewer_side == winner_side:
+            return f"🏆 تو بردی!\n💰 جایزه: +{earned_money} | ⭐ +5 لول"
+        return "💀 تو باختی! HP ـت ریست شد به ماکزیمم."
+
+    actor_text = f"{timeout_note}{turn_summary}\n\n{_outcome(side)}"
+    other_text = f"{timeout_note}{turn_summary}\n\n{_outcome(other_side)}"
+
+    await query.edit_message_text(actor_text)
+    try:
+        await context.bot.send_message(chat_id=other_chat_id, text=other_text)
+    except Exception:
+        pass  # نتونستیم به حریف خبر بدیم؛ نتیجه توی دیتابیس قبلاً ثبت شده
 
 # =========================
 # BOSS
@@ -718,7 +929,7 @@ async def ship(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛡️ Durability: {ship_data.get('durability', '?')}\n"
         f"📦 Cargo: {ship_data.get('cargo', '?')}\n"
         f"📝 {ship_data.get('description', '')}"
-    )
+)
 
 # =========================
 # ISLAND
@@ -856,33 +1067,6 @@ async def upgrade_speed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Speed +10 شد!")
 
 # =========================
-# DAILY
-# =========================
-async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    online_users[user.id] = user.first_name
-    today = datetime.date.today().isoformat()
-
-    cursor.execute("SELECT last_daily, character FROM players WHERE user_id=?", (user.id,))
-    row = cursor.fetchone()
-    if not row or not row[1]:
-        await update.message.reply_text("❌ اول /character_select بزن.")
-        return
-
-    # FIX: قبلاً وضعیت claim توی context.bot_data (حافظه) نگه داشته می‌شد
-    # و با هر ری‌استارت بات پاک می‌شد. الان توی دیتابیس ذخیره می‌شه.
-    if row[0] == today:
-        await update.message.reply_text("❌ جایزه روزانه رو قبلاً گرفتی! فردا بیا.")
-        return
-
-    cursor.execute(
-        "UPDATE players SET money=money+500, hp=max_hp, last_daily=? WHERE user_id=?",
-        (today, user.id)
-    )
-    db.commit()
-    await update.message.reply_text("🎁 جایزه روزانه!\n\n💰 +500\n❤️ HP ریست شد!")
-
-# =========================
 # RANK
 # =========================
 async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -980,6 +1164,7 @@ app.add_handler(CommandHandler("raid", raid))
 
 app.add_handler(CallbackQueryHandler(pick_character_callback, pattern=r"^pick_"))
 app.add_handler(CallbackQueryHandler(fight_callback, pattern=r"^fight_"))
+app.add_handler(CallbackQueryHandler(fight_attack_callback, pattern=r"^atk_"))
 app.add_handler(CallbackQueryHandler(raid_callback, pattern=r"^raid_"))
 print("🏴‍☠️ Bot Online - One Piece RPG")
 app.run_polling()
