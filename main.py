@@ -1,25 +1,33 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from database import db, cursor
+
 from characters import characters
-from skill import SKILL_DB                          # FIX: نام درست
+from skill import SKILL_DB
 from skill_system import get_available_skills, add_mastery
 from shop import buy_item, SHOP_ITEMS, get_money
 from inventory import get_inventory, add_item
 from awakening import check_awakening
-from form_system import change_form                  # FIX: form_system نه form
-from ship_system import ships                        # FIX: ship_system نه ships
-from swords_shop import SWORDS_SHOP                  # FIX: فایل ساخته شد
-from daily import claim_daily                          # FIX: /daily پیاده‌سازی شد
+from form_system import change_form
+from ship_system import ships
+from swords_shop import SWORDS_SHOP
+from daily import claim_daily
 from islands import islands
-from raid_handler import raid, raid_callback          # FIX: raid files ساخته شدن
-from fight import create_battle, apply_action, get_actions  # تبدیل به Button Battle
-from compute_damage import compute_damage             # FIX: برای mastery scaling در boss
+from raid_handler import raid, raid_callback
+from fight import create_battle, apply_action, get_actions
+from compute_damage import compute_damage
+
 import os
 import random
 import datetime
 
+# =========================
+# TOKEN SAFETY FIX
+# =========================
 TOKEN = os.environ.get("TOKEN")
+
+if not TOKEN:
+    raise ValueError("❌ TOKEN is not set! Please set it in Railway Variables.")
 
 # =========================
 # آنلاین یوزرها
