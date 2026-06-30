@@ -773,7 +773,7 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if island_data["boat_required"] and not current_ship:
         await update.message.reply_text("❌ برای این جزیره کشتی نیاز داری! از /ship_shop بخر.")
         return
-    await update.message.reply_text(f"✅ به {dest}
+    await update.message.reply_text(f"✅ به {dest} سفر کردی!")
 
 # =========================
 # UPGRADE
