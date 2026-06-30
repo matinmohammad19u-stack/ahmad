@@ -1,7 +1,36 @@
+import os
+import shutil
 import sqlite3
 
-db = sqlite3.connect("game.db", check_same_thread=False)
+# =========================
+# FIX (پایداری دیتابیس): قبلاً مسیر فایل دیتابیس همیشه "game.db" (نسبی به
+# پوشه‌ی اجرا) بود. توی خیلی از سرویس‌های هاست (Railway/Render/Replit و...)
+# اگه پوشه‌ی اجرا روی یه دیسک غیرپایدار باشه، با هر آپدیت/دیپلوی این فایل
+# از بین می‌ره و همه‌ی اطلاعات بازیکن‌ها (پول، لول، شخصیت، آیتم‌ها...) پاک
+# می‌شه. الان مسیر از روی متغیر محیطی DB_PATH قابل تنظیمه تا بشه روی یه
+# دیسک/والیوم دائمی نگه‌ش داشت؛ اگه ست نشده بود، همون رفتار قبلی (game.db
+# کنار همین فایل) حفظ می‌شه که برای اجرای لوکال کافیه.
+# =========================
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "game.db"))
+
+# FIX: یه بک‌آپ ساده از دیتابیس قبل از هر تغییری می‌گیریم (فقط اگه فایل از
+# قبل وجود داشته باشه). اگه یه دیپلوی/مایگریشن خراب چیزی رو خراب کنه، حداقل
+# یه نسخه‌ی قبلش (game.db.bak) موجوده.
+if os.path.exists(DB_PATH):
+    try:
+        shutil.copy2(DB_PATH, DB_PATH + ".bak")
+    except Exception as _e:
+        print(f"Warning: نتونستم بک‌آپ بگیرم: {_e}")
+
+db = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = db.cursor()
+
+# FIX: WAL کمک می‌کنه اگه بات وسط نوشتن (مثلاً وقت آپدیت/ری‌استارت ناگهانی)
+# kill بشه، فایل دیتابیس کرپت/خراب نشه.
+cursor.execute("PRAGMA journal_mode=WAL")
+cursor.execute("PRAGMA synchronous=NORMAL")
+
+print(f"📂 مسیر دیتابیس: {DB_PATH}")
 
 # =========================
 # PLAYERS
@@ -47,6 +76,8 @@ for _col_def in [
     "ALTER TABLE players ADD COLUMN extra_defense INTEGER DEFAULT 0",
     "ALTER TABLE players ADD COLUMN extra_speed INTEGER DEFAULT 0",
     "ALTER TABLE players ADD COLUMN last_daily TEXT DEFAULT NULL",
+    # FIX: برای پیاده‌سازی استریک جایزه‌ی روزانه (/daily) به این ستون نیاز بود
+    "ALTER TABLE players ADD COLUMN daily_streak INTEGER DEFAULT 0",
 ]:
     try:
         cursor.execute(_col_def)
