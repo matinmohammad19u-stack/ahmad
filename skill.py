@@ -492,7 +492,8 @@ SKILL_DB = {
             {"name": "Gravity Collapse", "damage": 240},
         ],
     },
-# =========================
+
+    # =========================
     # CHARLOTTE FAMILY
     # =========================
     "Charlotte Smoothie": {
@@ -679,5 +680,41 @@ SKILL_DB = {
             {"name": "Dragon's Wrath", "damage": 255},
             {"name": "World Liberation Storm", "damage": 270},
         ],
+    },
+    # =========================
+    # FIX: این ۳ کاراکتر توی characters.py بودن ولی هیچ اسکیلی نداشتن
+    # (باعث می‌شد /skills و /mastery براشون خراب کار کنه)
+    # =========================
+    "Kozuki Toki": {
+        "Base": [
+            {"name": "Twin Blade Slash", "damage": 95},
+            {"name": "Time Sense Strike", "damage": 100},
+        ],
+        "Toki Toki Form": [
+            {"name": "Chronos Blade", "damage": 155},
+            {"name": "Time Leap Slash", "damage": 165},
+        ]
+    },
+
+    "Scopper Gaban": {
+        "Base": [
+            {"name": "Roger Style Slash", "damage": 115},
+            {"name": "First Mate's Cut", "damage": 120},
+        ],
+        "Veteran Haki": [
+            {"name": "Conqueror's Edge", "damage": 175},
+            {"name": "Golden Age Slash", "damage": 185},
+        ]
+    },
+
+    "Vista": {
+        "Base": [
+            {"name": "Flower Sword Style", "damage": 110},
+            {"name": "Twin Blade Dance", "damage": 115},
+        ],
+        "Hana Hana Blade": [
+            {"name": "Blooming Destruction", "damage": 170},
+            {"name": "Petal Storm Slash", "damage": 180},
+        ]
     },
 }
