@@ -53,9 +53,19 @@ def _new_battle_id():
 def _skill_keyboard(battle_id, skills):
     buttons = []
     for idx, sk in enumerate(skills):
-        dmg_label = f"{sk['damage']} دمیج" if sk.get("damage") else "Utility"
+        # FIX: جاخالی و دفاع اسکیل حمله نیستن، دکمه‌ی جدا و متمایز می‌گیرن
+        # (شمارنده‌ی تعداد باقیمونده‌ی هرکدوم توی اسم خودشون ست، مثلاً
+        # "جاخالی (4/5)")
+        a_type = sk.get("type", "attack")
+        if a_type == "dodge":
+            label = f"🌀 {sk['name']}"
+        elif a_type == "defense":
+            label = f"🛡 {sk['name']}"
+        else:
+            dmg_label = f"{sk['damage']} دمیج" if sk.get("damage") else "Utility"
+            label = f"💥 {sk['name']} ({dmg_label})"
         buttons.append([
-            InlineKeyboardButton(f"💥 {sk['name']} ({dmg_label})", callback_data=f"atk_{battle_id}_{idx}")
+            InlineKeyboardButton(label, callback_data=f"atk_{battle_id}_{idx}")
         ])
     return InlineKeyboardMarkup(buttons)
 
@@ -293,9 +303,8 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⛵ کشتی: {ship or 'ندارم'}\n\n"
         f"🏆 بردها: {wins}\n"
         f"💀 باختا: {losses}"
-    )
-
-# =========================
+)
+    # =========================
 # FIGHT (PVP آنلاین) — Button Battle
 # تغییر اصلی: قبلاً فایت یه‌جا اتوماتیک شبیه‌سازی می‌شد (اسکیل‌های رندوم
 # برای هر دو طرف) و فقط یه لاگ متنی نشون داده می‌شد؛ پلیر هیچ نقشی توی
@@ -498,16 +507,41 @@ async def fight_attack_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     attacker_name = state["fighters"][side]["name"]
     defender_name = state["fighters"][other_side]["name"]
-    crit_text = " 💥 CRIT!" if result["crit"] else ""
 
-    turn_summary = (
-        f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد → {result['damage']} دمیج{crit_text}\n"
-        f"{_hp_line(state)}"
-    )
+    # FIX: جاخالی/دفاع دیگه به شکل «حمله‌ای با ۰ دمیج» نشون داده نمی‌شن؛
+    # یه پیام مخصوص خودشون دارن. همینطور وقتی حمله‌ی طرف مقابل با
+    # جاخالی/دفاعِ قبلیِ حریف خنثی یا کم‌اثر شده، اون هم توی پیام مشخصه.
+    action_type = result.get("action_type", "attack")
+    mitigated = result.get("mitigated")
+
+    if action_type == "dodge":
+        line = f"🌀 {attacker_name} جاخالی داد! ضربه‌ی بعدی {defender_name} روش اثر نمی‌کنه."
+    elif action_type == "defense":
+        line = f"🛡 {attacker_name} دفاع گرفت! ضربه‌ی بعدی {defender_name} کم‌اثرتر می‌شه."
+    else:
+        crit_text = " 💥 CRIT!" if result["crit"] and result["damage"] > 0 else ""
+        if mitigated == "dodge":
+            line = f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد، ولی {defender_name} جاخالی داد و کامل رد کرد! (۰ دمیج)"
+        elif mitigated == "defense_full":
+            line = f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد، ولی {defender_name} با دفاع کامل خنثی‌ش کرد! (۰ دمیج)"
+        elif mitigated == "defense_half":
+            line = f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد → {defender_name} با دفاع نصف دمیج رو کم کرد → {result['damage']} دمیج{crit_text}"
+        elif mitigated == "defense_quarter":
+            line = f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد → {defender_name} با دفاع دمیج رو یک‌چهارم کرد → {result['damage']} دمیج{crit_text}"
+        else:
+            line = f"⚔️ {attacker_name} از {result['skill_name']} استفاده کرد → {result['damage']} دمیج{crit_text}"
+
+    turn_summary = f"{line}\n{_hp_line(state)}"
 
     if not result["finished"]:
         # نوبت میره طرف مقابل
-        await query.edit_message_text(f"✅ تو زدی!\n\n{turn_summary}\n\n⏳ منتظر نوبتت بمون...")
+        if action_type == "dodge":
+            actor_confirm = "✅ جاخالی دادی!"
+        elif action_type == "defense":
+            actor_confirm = "✅ دفاع گرفتی!"
+        else:
+            actor_confirm = "✅ تو زدی!"
+        await query.edit_message_text(f"{actor_confirm}\n\n{turn_summary}\n\n⏳ منتظر نوبتت بمون...")
         next_side = state["turn"]
         try:
             await context.bot.send_message(
@@ -1057,7 +1091,7 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ برای این جزیره کشتی نیاز داری! از /ship_shop بخر.")
         return
     await update.message.reply_text(f"✅ به {dest} سفر کردی!")
-
+        
 # =========================
 # DAILY - FIX: این دستور توی /start، /help و چندجای دیگه بهش اشاره می‌شد
 # (و توی database.py حتی ستون last_daily براش آماده شده بود) ولی هیچ
@@ -1169,8 +1203,7 @@ async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         char_display = char_name or "بدون شخصیت"
         text += f"{medal} @{username} | {char_display} | Lv{level}\n"
     await update.message.reply_text(text)
-
-# =========================
+    # =========================
 # HELP
 # =========================
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
