@@ -12,7 +12,8 @@ def get_form(character_name, skills_db):
 
 def get_skills(character_name, skills_db, form="Base"):
     """
-    لیست اسکیل‌های قابل انتخاب یه کاراکتر توی یه فرم خاص.
+    لیست اسکیل‌های حمله‌ی قابل انتخاب یه کاراکتر توی یه فرم خاص (بدون
+    جاخالی/دفاع؛ اونا جدا و پویا توی get_actions اضافه می‌شن).
     همیشه حداقل یه اسکیل (Basic Attack) برمی‌گردونه تا دکمه‌های فایت
     هیچوقت خالی نمونن و کرش نکنیم.
     """
@@ -66,6 +67,28 @@ def decide_first(p1, p2):
 
 MAX_ROUNDS = 40  # FIX: سقف امن برای جلوگیری از فایت بی‌نهایت (مثلاً دفس‌های خیلی بالا)
 
+# =========================
+# 🌀 جاخالی / 🛡 دفاع
+# این دو تا یه "اسکیل" واقعی نیستن، اکشن‌های ویژه‌ان که به جای حمله زدن،
+# یه شیلد روی خود بازیکن می‌ذارن که رو ضربه‌ی بعدیِ حریف اثر می‌کنه:
+#   - جاخالی (۵ بار در کل مبارزه): ضربه‌ی بعدی حریف کامل رد می‌شه (۰ دمیج).
+#   - دفاع (۳ بار در کل مبارزه): تأثیرش بسته به چندمین باری که استفاده
+#     می‌شه فرق می‌کنه → بار ۱: دمیج ۰ (کامل خنثی) | بار ۲: دمیج نصف |
+#     بار ۳: دمیج یک‌چهارم.
+# استفاده از این دو تا هم مثل زدن یه اسکیل، نوبت رو می‌ده طرف مقابل.
+# =========================
+DODGE_MAX_USES = 5
+DEFENSE_MAX_USES = 3
+DODGE_TYPE = "dodge"
+DEFENSE_TYPE = "defense"
+ATTACK_TYPE = "attack"
+
+_DEFENSE_TIER_LABEL = {
+    1: "کامل خنثی می‌کنه (۰ دمیج)",
+    2: "نصف می‌کنه",
+    3: "یک‌چهارم می‌کنه",
+}
+
 
 def create_battle(p1, p2, skills_db, p1_form="Base", p2_form="Base"):
     """
@@ -80,26 +103,27 @@ def create_battle(p1, p2, skills_db, p1_form="Base", p2_form="Base"):
     hp1 = max(1, c1["stats"].get("hp", 1))
     hp2 = max(1, c2["stats"].get("hp", 1))
 
+    def _new_fighter(c, hp, form):
+        return {
+            "name": c["name"],
+            "stats": c["stats"],
+            "hp": hp,
+            "max_hp": hp,
+            "form": form,
+            "skills": get_skills(c["name"], skills_db, form),
+            "skills_used": {},
+            # شارژهای جاخالی/دفاع
+            "dodge_left": DODGE_MAX_USES,
+            "defense_left": DEFENSE_MAX_USES,
+            "defense_used": 0,          # چندمین بار دفاع زده شده (برای تعیین تیر)
+            "pending_dodge": False,     # ضربه‌ی بعدی حریف روی این آدم رد می‌شه
+            "pending_defense_tier": 0,  # 0 = فعال نیست، 1/2/3 = تیر فعلی دفاع
+        }
+
     state = {
         "fighters": {
-            "p1": {
-                "name": c1["name"],
-                "stats": c1["stats"],
-                "hp": hp1,
-                "max_hp": hp1,
-                "form": p1_form,
-                "skills": get_skills(c1["name"], skills_db, p1_form),
-                "skills_used": {},
-            },
-            "p2": {
-                "name": c2["name"],
-                "stats": c2["stats"],
-                "hp": hp2,
-                "max_hp": hp2,
-                "form": p2_form,
-                "skills": get_skills(c2["name"], skills_db, p2_form),
-                "skills_used": {},
-            },
+            "p1": _new_fighter(c1, hp1, p1_form),
+            "p2": _new_fighter(c2, hp2, p2_form),
         },
         "turn": None,
         "round": 1,
@@ -117,20 +141,46 @@ def create_battle(p1, p2, skills_db, p1_form="Base", p2_form="Base"):
     first_name = state["fighters"][state["turn"]]["name"]
     state["log"].append(f"⚔️ {f1['name']} VS {f2['name']} شروع شد!")
     state["log"].append(f"❤️ {f1['name']}: {f1['hp']} HP | {f2['name']}: {f2['hp']} HP")
+    state["log"].append(
+        f"🌀 هر بازیکن {DODGE_MAX_USES} جاخالی و 🛡 {DEFENSE_MAX_USES} دفاع برای کل مبارزه داره."
+    )
     state["log"].append(f"💨 {first_name} سریع‌تره و اول حمله می‌کنه!")
 
     return state
 
 
 def get_actions(state, side):
-    """لیست اسکیل‌های قابل انتخاب برای 'p1' یا 'p2' (برای ساخت دکمه‌ها)."""
-    return state["fighters"][side]["skills"]
+    """
+    لیست کامل اکشن‌های قابل انتخاب برای 'p1' یا 'p2' (برای ساخت دکمه‌ها):
+    اسکیل‌های حمله + (اگه شارژ مونده باشه) جاخالی و دفاع.
+    ترتیب همیشه ثابته: [اسکیل‌های حمله..., جاخالی؟, دفاع؟] تا ایندکس‌های
+    دکمه‌ای که قبلاً ساخته شده معتبر بمونن.
+    """
+    fighter = state["fighters"][side]
+    actions = list(fighter["skills"])
+
+    if fighter["dodge_left"] > 0:
+        actions.append({
+            "name": f"جاخالی ({fighter['dodge_left']}/{DODGE_MAX_USES})",
+            "damage": 0,
+            "type": DODGE_TYPE,
+        })
+
+    if fighter["defense_left"] > 0:
+        actions.append({
+            "name": f"دفاع ({fighter['defense_left']}/{DEFENSE_MAX_USES})",
+            "damage": 0,
+            "type": DEFENSE_TYPE,
+        })
+
+    return actions
 
 
 def apply_action(state, side, skill_index):
     """
-    یه ضربه‌ی واحد رو پردازش می‌کنه. side باید برابر state['turn'] باشه.
-    خروجی: دیکشنری result با جزئیات ضربه + وضعیت پایان مبارزه.
+    یه اکشن واحد رو پردازش می‌کنه: حمله، جاخالی یا دفاع. side باید برابر
+    state['turn'] باشه. خروجی: دیکشنری result با جزئیات اکشن + وضعیت
+    پایان مبارزه.
     """
     if side not in ("p1", "p2"):
         raise ValueError("invalid side")
@@ -143,32 +193,22 @@ def apply_action(state, side, skill_index):
     attacker = state["fighters"][side]
     defender = state["fighters"][other]
 
-    skills = attacker["skills"]
+    actions = get_actions(state, side)
     # FIX: ایندکس نامعتبر (مثلاً دکمه‌ی قدیمی/دستکاری‌شده) → fallback ایمن
     # به جای IndexError/کرش کل مبارزه
-    if not isinstance(skill_index, int) or skill_index < 0 or skill_index >= len(skills):
+    if not isinstance(skill_index, int) or skill_index < 0 or skill_index >= len(actions):
         skill_index = 0
-    skill = skills[skill_index]
-
-    attacker_view = {"name": attacker["name"], "stats": dict(attacker["stats"], hp=attacker["hp"])}
-    defender_view = {"name": defender["name"], "stats": dict(defender["stats"], hp=defender["hp"])}
-
-    dmg, crit = calculate_damage(attacker_view, defender_view, skill)
-    defender["hp"] = max(0, defender["hp"] - dmg)
-
-    attacker["skills_used"][skill["name"]] = attacker["skills_used"].get(skill["name"], 0) + 1
-
-    crit_text = " 💥 CRIT!" if crit else ""
-    state["log"].append(
-        f"{attacker['name']} از {skill['name']} استفاده کرد → {dmg} دمیج{crit_text}"
-    )
+    action = actions[skill_index]
+    action_type = action.get("type", ATTACK_TYPE)
 
     result = {
         "attacker": side,
         "defender": other,
-        "skill_name": skill["name"],
-        "damage": dmg,
-        "crit": crit,
+        "action_type": action_type,
+        "skill_name": action["name"],
+        "damage": 0,
+        "crit": False,
+        "mitigated": None,  # None | "dodge" | "defense_full" | "defense_half" | "defense_quarter"
         "attacker_hp": attacker["hp"],
         "defender_hp": defender["hp"],
         "finished": False,
@@ -177,18 +217,77 @@ def apply_action(state, side, skill_index):
         "earned_money": None,
     }
 
-    if defender["hp"] <= 0:
-        earned_money = 100 + random.randint(0, 100)
-        state["finished"] = True
-        state["winner"] = side
-        state["earned_money"] = earned_money
-        result["finished"] = True
-        result["winner"] = side
-        result["earned_money"] = earned_money
-        state["log"].append(f"🏆 برنده: {attacker['name']}!")
-        return result
+    if action_type == DODGE_TYPE:
+        # ---------- جاخالی: ضربه‌ی بعدیِ حریف روی این آدم کامل رد می‌شه ----------
+        attacker["dodge_left"] = max(0, attacker["dodge_left"] - 1)
+        attacker["pending_dodge"] = True
+        state["log"].append(
+            f"🌀 {attacker['name']} جاخالی داد! ضربه‌ی بعدی {defender['name']} روش اثر نمی‌کنه."
+        )
 
-    # نوبت می‌ره طرف مقابل
+    elif action_type == DEFENSE_TYPE:
+        # ---------- دفاع: تیرش بسته به چندمین بار مصرفه ----------
+        tier = attacker["defense_used"] + 1  # 1, 2, 3
+        attacker["defense_used"] += 1
+        attacker["defense_left"] = max(0, attacker["defense_left"] - 1)
+        attacker["pending_defense_tier"] = tier
+        state["log"].append(
+            f"🛡 {attacker['name']} دفاع گرفت! ضربه‌ی بعدی {defender['name']} رو "
+            f"{_DEFENSE_TIER_LABEL[tier]}."
+        )
+
+    else:
+        # ---------- حمله‌ی عادی ----------
+        skill = action
+        attacker_view = {"name": attacker["name"], "stats": dict(attacker["stats"], hp=attacker["hp"])}
+        defender_view = {"name": defender["name"], "stats": dict(defender["stats"], hp=defender["hp"])}
+
+        dmg, crit = calculate_damage(attacker_view, defender_view, skill)
+
+        mitigated = None
+        if defender["pending_dodge"]:
+            dmg = 0
+            mitigated = "dodge"
+            defender["pending_dodge"] = False
+        elif defender["pending_defense_tier"] > 0:
+            tier = defender["pending_defense_tier"]
+            if tier == 1:
+                dmg = 0
+                mitigated = "defense_full"
+            elif tier == 2:
+                dmg = dmg // 2
+                mitigated = "defense_half"
+            else:
+                dmg = dmg // 4
+                mitigated = "defense_quarter"
+            defender["pending_defense_tier"] = 0
+
+        defender["hp"] = max(0, defender["hp"] - dmg)
+        attacker["skills_used"][skill["name"]] = attacker["skills_used"].get(skill["name"], 0) + 1
+
+        crit_text = " 💥 CRIT!" if crit and dmg > 0 else ""
+        state["log"].append(
+            f"{attacker['name']} از {skill['name']} استفاده کرد → {dmg} دمیج{crit_text}"
+        )
+
+        result["damage"] = dmg
+        result["crit"] = crit
+        result["mitigated"] = mitigated
+        result["attacker_hp"] = attacker["hp"]
+        result["defender_hp"] = defender["hp"]
+
+        if defender["hp"] <= 0:
+            earned_money = 100 + random.randint(0, 100)
+            state["finished"] = True
+            state["winner"] = side
+            state["earned_money"] = earned_money
+            result["finished"] = True
+            result["winner"] = side
+            result["earned_money"] = earned_money
+            state["log"].append(f"🏆 برنده: {attacker['name']}!")
+            return result
+
+    # نوبت می‌ره طرف مقابل (چه حمله بوده، چه جاخالی، چه دفاع)
     state["turn"] = other
     state["actions"] += 1
     if state["actions"] % 2 == 0:
