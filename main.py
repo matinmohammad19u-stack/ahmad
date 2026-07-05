@@ -8,7 +8,7 @@ from skill_system import get_available_skills, add_mastery
 from shop import buy_item, SHOP_ITEMS, get_money
 from inventory import get_inventory, add_item
 from awakening import check_awakening
-from form_system import change_form, get_switchable_forms, has_form_choice
+from form_system import change_form, get_switchable_forms, has_form_choice, get_forms_with_requirements
 from ship_system import ships
 from swords_shop import SWORDS_SHOP
 from daily import claim_daily
@@ -196,7 +196,7 @@ async def pick_character_callback(update: Update, context: ContextTypes.DEFAULT_
         f"⚔️ Attack: {chosen['stats']['attack']}\n"
         f"🛡️ Defense: {chosen['stats']['defense']}\n"
         f"💨 Speed: {chosen['stats']['speed']}"
-)
+    )
 
 # =========================
 # CHARACTER - FIX: این تابع وجود نداشت ولی handler ثبت شده بود!
@@ -206,16 +206,16 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
     online_users[user.id] = user.first_name
     cursor.execute("""
         SELECT character, hp, max_hp, current_form, awakening,
-               equipped_weapon, extra_attack, extra_defense, extra_speed
+               equipped_weapon, extra_attack, extra_defense, extra_speed, level
         FROM players WHERE user_id=?
     """, (user.id,))
     data = cursor.fetchone()
     if not data or not data[0]:
         await update.message.reply_text("❌ اول /character_select بزن.")
         return
-    char_name, hp, max_hp, form, awakening, weapon, ex_atk, ex_def, ex_spd = data
+    char_name, hp, max_hp, form, awakening, weapon, ex_atk, ex_def, ex_spd, level = data
     char_stats = characters[char_name]["stats"]
-    forms_available = get_switchable_forms(char_name)
+    forms_with_req = get_forms_with_requirements(char_name)
 
     total_atk = char_stats["attack"] + ex_atk
     total_def = char_stats["defense"] + ex_def
@@ -226,10 +226,16 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sword_bonus = int(sword_bonus * 1.5) if char_name == "Roronoa Zoro" else sword_bonus
         total_atk += sword_bonus
 
-    forms_line = (
-        "\n".join(f"  • {f}" for f in forms_available)
-        if len(forms_available) >= 2 else "  فرم قابل‌تغییری نداره"
-    )
+    if len(forms_with_req) >= 2:
+        lines = []
+        for f, required in forms_with_req:
+            if level >= required:
+                lines.append(f"  ✅ {f}" + (f" (Lv{required})" if required else ""))
+            else:
+                lines.append(f"  🔒 {f} (Lv{required})")
+        forms_line = "\n".join(lines)
+    else:
+        forms_line = "  فرم قابل‌تغییری نداره"
 
     await update.message.reply_text(
         f"🎭 شخصیت: {char_name}\n"
@@ -283,7 +289,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💨 Speed: {total_spd}\n"
         f"🗡️ سلاح: {weapon or 'ندارم'}\n"
         f"⛵ کشتی: {ship or 'ندارم'}"
-    )
+        )
 
 # =========================
 # PROFILE
@@ -1026,35 +1032,44 @@ async def awaken(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Awakening اصلاً توی لیست نیستن (اونا فقط از طریق /awaken باز می‌شن).
 # فقط شخصیت‌هایی که واقعاً چند حالت دارن (مثل Luffy: Gear 2/4/5، Zoro:
 # Asura/King of Hell) دکمه‌ی انتخاب فرم می‌گیرن.
+#
+# + لول‌گیت: فرم اول همیشه از لول ۰ آزاده؛ از فرم دوم به بعد هر فرم ۱۰۰
+# لول بیشتر از قبلی می‌خواد (فرم۲=۲۰۰, فرم۳=۳۰۰, فرم۴=۴۰۰, ...). فرم‌هایی
+# که لولش نرسیده با 🔒 و لولِ لازم نشون داده می‌شن؛ زدن دکمه‌شون هم قفله.
 # =========================
 async def form_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     online_users[user.id] = user.first_name
-    cursor.execute("SELECT character, current_form FROM players WHERE user_id=?", (user.id,))
+    cursor.execute("SELECT character, current_form, level FROM players WHERE user_id=?", (user.id,))
     data = cursor.fetchone()
     if not data or not data[0]:
         await update.message.reply_text("❌ اول /character_select بزن.")
         return
-    char_name, form = data
+    char_name, form, level = data
     current_form = form or "Base"
-    switchable = get_switchable_forms(char_name)
+    forms_with_req = get_forms_with_requirements(char_name)
 
-    if len(switchable) < 2:
+    if len(forms_with_req) < 2:
         await update.message.reply_text(
             f"⚡ فرم فعلی: {current_form}\n\n"
             f"🎭 {char_name} فرم قابل‌تغییری نداره."
         )
         return
 
-    keyboard = [
-        [InlineKeyboardButton(
-            f"{'✅ ' if f == current_form else ''}{f}",
-            callback_data=f"frm_{f}"
-        )]
-        for f in switchable
-    ]
+    keyboard = []
+    lines = [f"⚡ فرم فعلی: {current_form}  |  ⭐ لول: {level}\n", "🔄 کدوم فرم رو میخوای بگیری؟"]
+    for f, required in forms_with_req:
+        unlocked = level >= required
+        mark = "✅ " if f == current_form else ""
+        if unlocked:
+            label = f"{mark}{f}" + (f" (Lv{required})" if required else "")
+            keyboard.append([InlineKeyboardButton(label, callback_data=f"frm_{f}")])
+        else:
+            keyboard.append([InlineKeyboardButton(f"🔒 {f} (Lv{required})", callback_data="frm_locked")])
+            lines.append(f"🔒 {f} — نیاز به لول {required} (الان {level})")
+
     await update.message.reply_text(
-        f"⚡ فرم فعلی: {current_form}\n\n🔄 کدوم فرم رو میخوای بگیری؟",
+        "\n".join(lines),
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -1063,6 +1078,9 @@ async def form_pick_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """دکمه‌ی انتخاب فرم توی /form زده شد."""
     query = update.callback_query
     user = query.from_user
+    if query.data == "frm_locked":
+        await query.answer("🔒 لولت هنوز به این فرم نرسیده!", show_alert=True)
+        return
     form_name = query.data[len("frm_"):]
     result = change_form(user.id, form_name)
     await query.answer()
@@ -1162,21 +1180,7 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ به {dest} سفر کردی!\nبرای فایت با باس‌های این جزیره: /island_boss"
     )
-        
-# =========================
-# DAILY - FIX: این دستور توی /start، /help و چندجای دیگه بهش اشاره می‌شد
-# (و توی database.py حتی ستون last_daily براش آماده شده بود) ولی هیچ
-# handler واقعی‌ای نداشت؛ یعنی /daily اصلاً کار نمی‌کرد. منطق واقعیش توی
-# daily.py پیاده‌سازی شده و وضعیت claim توی دیتابیس ذخیره می‌شه (نه حافظه‌ی
-# بات)، پس با ری‌استارت/آپدیت بات هم پاک نمی‌شه.
-# =========================
-async def daily_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    online_users[user.id] = user.first_name
-    result = claim_daily(user.id)
-    await update.message.reply_text(result)
-
-# =========================
+    # =========================
 # UPGRADE
 # =========================
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1300,8 +1304,8 @@ async def points_spend_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text(
         f"{result}\n\n🎯 پوینت فعلی: {points}\n\nکدوم ویژگی رو میخوای بالا ببری؟",
         reply_markup=_points_keyboard()
-        )
-    # =========================
+    )
+# =========================
 # RANK
 # =========================
 async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
