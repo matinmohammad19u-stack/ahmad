@@ -197,7 +197,7 @@ async def pick_character_callback(update: Update, context: ContextTypes.DEFAULT_
         f"🛡️ Defense: {chosen['stats']['defense']}\n"
         f"💨 Speed: {chosen['stats']['speed']}"
     )
-
+    
 # =========================
 # CHARACTER - FIX: این تابع وجود نداشت ولی handler ثبت شده بود!
 # =========================
@@ -250,6 +250,7 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔄 فرم‌های موجود (با /form تغییرشون بده):\n" +
         forms_line
     )
+
 # =========================
 # STATS
 # =========================
@@ -732,7 +733,7 @@ async def boss(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # FIX: قبلاً فقط "player_hp > 0" چک می‌شد. با اضافه شدن سقف turn، این یعنی
     # حتی اگه boss هنوز نمرده بود هم به اشتباه "برد" حساب می‌شد. الان درست:
-    if boss_hp <= 0:
+ boss_hp <= 0:
         money_reward = 500 + level * 50
         boss_points_gained = 5 * POINTS_PER_LEVEL
         cursor.execute(
@@ -837,6 +838,7 @@ async def sword_shop_page_callback(update: Update, context: ContextTypes.DEFAULT
         _sword_shop_page_text(page),
         reply_markup=_sword_shop_keyboard(page)
     )
+
 
 # =========================
 # SHIP SHOP
@@ -1180,7 +1182,21 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ به {dest} سفر کردی!\nبرای فایت با باس‌های این جزیره: /island_boss"
     )
-    # =========================
+        
+# =========================
+# DAILY - FIX: این دستور توی /start، /help و چندجای دیگه بهش اشاره می‌شد
+# (و توی database.py حتی ستون last_daily براش آماده شده بود) ولی هیچ
+# handler واقعی‌ای نداشت؛ یعنی /daily اصلاً کار نمی‌کرد. منطق واقعیش توی
+# daily.py پیاده‌سازی شده و وضعیت claim توی دیتابیس ذخیره می‌شه (نه حافظه‌ی
+# بات)، پس با ری‌استارت/آپدیت بات هم پاک نمی‌شه.
+# =========================
+async def daily_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    result = claim_daily(user.id)
+    await update.message.reply_text(result)
+
+# =========================
 # UPGRADE
 # =========================
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1305,6 +1321,7 @@ async def points_spend_callback(update: Update, context: ContextTypes.DEFAULT_TY
         f"{result}\n\n🎯 پوینت فعلی: {points}\n\nکدوم ویژگی رو میخوای بالا ببری؟",
         reply_markup=_points_keyboard()
     )
+
 # =========================
 # RANK
 # =========================
