@@ -29,6 +29,7 @@ def kaido(user_id: int):
 
     # Kaido Stats
     boss_hp = 6000 + level * 250
+    boss_max_hp = boss_hp
     boss_attack = 220 + level * 10
     boss_defense = 180 + level * 4
 
@@ -73,7 +74,15 @@ def kaido(user_id: int):
         player_hp -= b_dmg
         turn += 1
 
-    won = player_hp > 0
+    # FIX: مثل raid_bigmom.py، سقف راند دیگه همیشه به نفع بازیکن تموم نمی‌شه؛
+    # بر اساس درصد HP باقیمونده مشخص می‌شه.
+    if turn > 25 and player_hp > 0 and boss_hp > 0:
+        player_pct = player_hp / max_hp if max_hp else 0
+        boss_pct = boss_hp / boss_max_hp if boss_max_hp else 0
+        won = player_pct >= boss_pct
+        log.append("⏱️ سقف راندها رسید! بر اساس HP باقیمونده برنده مشخص شد.")
+    else:
+        won = player_hp > 0
     final_hp = max(1, player_hp) if won else max_hp
 
     cursor.execute("UPDATE players SET hp=? WHERE user_id=?", (final_hp, user_id))
