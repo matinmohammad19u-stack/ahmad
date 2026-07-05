@@ -78,7 +78,7 @@ MAX_ROUNDS = 40  # FIX: سقف امن برای جلوگیری از فایت بی
 # استفاده از این دو تا هم مثل زدن یه اسکیل، نوبت رو می‌ده طرف مقابل.
 # =========================
 DODGE_MAX_USES = 5
-DEFENSE_MAX_USES = 3
+DEFENSE_MAX_USES = 8
 DODGE_TYPE = "dodge"
 DEFENSE_TYPE = "defense"
 ATTACK_TYPE = "attack"
@@ -233,7 +233,7 @@ def apply_action(state, side, skill_index):
         attacker["pending_defense_tier"] = tier
         state["log"].append(
             f"🛡 {attacker['name']} دفاع گرفت! ضربه‌ی بعدی {defender['name']} رو "
-            f"{_DEFENSE_TIER_LABEL[tier]}."
+            f"{_DEFENSE_TIER_LABEL[min(tier, 3)]}."
         )
 
     else:
