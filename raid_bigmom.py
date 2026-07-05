@@ -29,6 +29,7 @@ def bigmom(user_id: int):
 
     # Big Mom Stats
     boss_hp = 5000 + level * 200
+    boss_max_hp = boss_hp
     boss_attack = 200 + level * 8
     boss_defense = 150 + level * 3
 
@@ -48,9 +49,14 @@ def bigmom(user_id: int):
         boss_hp -= dmg
         crit = random.random() < 0.1
         if crit:
-            dmg = int(dmg * 1.5)
-            boss_hp -= dmg // 2
-            log.append(f"Turn {turn}: تو {dmg} 💥CRIT زدی!")
+            # FIX: قبلاً dmg اول به boss_hp اضافه می‌شد، بعد dmg دوباره
+            # ۱.۵ برابر می‌شد و نصفش دوباره کم می‌شد → دمیج واقعی وارد‌شده
+            # (۱.۷۵x) با چیزی که توی لاگ نشون داده می‌شد (۱.۵x) یکی نبود.
+            # الان دقیقاً مثل raid_kaido.py: یه bonus جدا (نصف dmg اصلی)
+            # کم می‌شه و توی لاگ هم دقیقاً مجموع واقعی نشون داده می‌شه.
+            bonus = dmg // 2
+            boss_hp -= bonus
+            log.append(f"Turn {turn}: تو {dmg + bonus} 💥CRIT زدی!")
         else:
             log.append(f"Turn {turn}: تو {dmg} زدی به Big Mom")
 
@@ -70,7 +76,17 @@ def bigmom(user_id: int):
         player_hp -= b_dmg
         turn += 1
 
-    won = player_hp > 0
+    # FIX: قبلاً اگه به سقف ۲۵ راند می‌رسید بدون اینکه کسی صفر بشه، بازیکن
+    # همیشه "برنده" حساب می‌شد (چون player_hp > 0 تقریباً همیشه درسته،
+    # حتی اگه boss_hp هنوز خیلی بالا باشه). الان مثل fight.py، بر اساس
+    # درصد HP باقیمونده‌ی هرکدوم برنده مشخص می‌شه.
+    if turn > 25 and player_hp > 0 and boss_hp > 0:
+        player_pct = player_hp / max_hp if max_hp else 0
+        boss_pct = boss_hp / boss_max_hp if boss_max_hp else 0
+        won = player_pct >= boss_pct
+        log.append("⏱️ سقف راندها رسید! بر اساس HP باقیمونده برنده مشخص شد.")
+    else:
+        won = player_hp > 0
     final_hp = max(1, player_hp) if won else max_hp  # اگه باخت HP ریست
 
     cursor.execute("UPDATE players SET hp=? WHERE user_id=?", (final_hp, user_id))
