@@ -113,4 +113,4 @@ def claim_daily(user_id: int) -> str:
         f"❤️ HP کامل شد! ({max_hp}/{max_hp})\n"
         f"{streak_line}\n\n"
         f"💰 پول فعلی: {new_money}"
-    )
+        )
