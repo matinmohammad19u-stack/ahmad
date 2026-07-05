@@ -666,7 +666,8 @@ SKILL_DB = {
             {"name": "World's Weight", "damage": 260},
         ],
     },
-        # =========================
+
+    # =========================
     # CHARLOTTE FAMILY
     # =========================
     "Charlotte Smoothie": {
@@ -993,4 +994,3 @@ SKILL_DB = {
         ],
     },
 }
-    
