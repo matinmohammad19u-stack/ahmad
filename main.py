@@ -733,7 +733,7 @@ async def boss(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # FIX: قبلاً فقط "player_hp > 0" چک می‌شد. با اضافه شدن سقف turn، این یعنی
     # حتی اگه boss هنوز نمرده بود هم به اشتباه "برد" حساب می‌شد. الان درست:
- boss_hp <= 0:
+if boss_hp <= 0:
         money_reward = 500 + level * 50
         boss_points_gained = 5 * POINTS_PER_LEVEL
         cursor.execute(
