@@ -8,14 +8,19 @@ from skill_system import get_available_skills, add_mastery
 from shop import buy_item, SHOP_ITEMS, get_money
 from inventory import get_inventory, add_item
 from awakening import check_awakening
-from form_system import change_form
+from form_system import change_form, get_switchable_forms, has_form_choice
 from ship_system import ships
 from swords_shop import SWORDS_SHOP
 from daily import claim_daily
 from islands import islands
-from raid_handler import raid, raid_callback
+from raid_handler import raid, raid_callback, raid_attack_callback
 from fight import create_battle, apply_action, get_actions
 from compute_damage import compute_damage
+from points_system import get_points, spend_points, POINT_UPGRADES, POINTS_PER_LEVEL
+from passive_system import apply_passive, describe_passive
+from island_boss_handler import (
+    island_boss_cmd, island_boss_pick_callback, island_boss_attack_callback
+)
 
 import os
 import random
@@ -114,7 +119,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/skills - مهارت‌ها\n"
         "/mastery - مستری\n"
         "/awaken - فعال‌سازی Awakening\n"
-        "/form - تغییر فرم\n"
+        "/form - انتخاب فرم (با دکمه)\n"
+        "/points - خرج کردن پوینت (Attack/Defense/Speed/HP)\n"
         "/shop - فروشگاه آیتم\n"
         "/sword_shop - فروشگاه شمشیر\n"
         "/ship_shop - فروشگاه کشتی\n"
@@ -123,11 +129,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/equip [نام] - تجهیز\n"
         "/ship - کشتی فعلی\n"
         "/island - جزیره فعلی\n"
+        "/island_boss - فایت دکمه‌ای با باس‌های جزیره‌ی فعلی\n"
         "/travel [نام] - سفر\n"
         "/upgrade - ارتقا\n"
         "/daily - جایزه روزانه\n"
         "/rank - رتبه‌بندی\n"
-        "/raid - نبرد گروهی\n"
+        "/raid - فایت با Raid Boss (دکمه‌ای، مثل PVP)\n"
         "/help - راهنما"
     )
 
@@ -189,8 +196,8 @@ async def pick_character_callback(update: Update, context: ContextTypes.DEFAULT_
         f"⚔️ Attack: {chosen['stats']['attack']}\n"
         f"🛡️ Defense: {chosen['stats']['defense']}\n"
         f"💨 Speed: {chosen['stats']['speed']}"
-    )
-    
+)
+
 # =========================
 # CHARACTER - FIX: این تابع وجود نداشت ولی handler ثبت شده بود!
 # =========================
@@ -208,7 +215,7 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     char_name, hp, max_hp, form, awakening, weapon, ex_atk, ex_def, ex_spd = data
     char_stats = characters[char_name]["stats"]
-    forms_available = list(SKILL_DB.get(char_name, {}).keys())
+    forms_available = get_switchable_forms(char_name)
 
     total_atk = char_stats["attack"] + ex_atk
     total_def = char_stats["defense"] + ex_def
@@ -219,17 +226,23 @@ async def character(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sword_bonus = int(sword_bonus * 1.5) if char_name == "Roronoa Zoro" else sword_bonus
         total_atk += sword_bonus
 
+    forms_line = (
+        "\n".join(f"  • {f}" for f in forms_available)
+        if len(forms_available) >= 2 else "  فرم قابل‌تغییری نداره"
+    )
+
     await update.message.reply_text(
         f"🎭 شخصیت: {char_name}\n"
         f"⚡ فرم فعلی: {form or 'Base'}\n"
         f"🌀 Awakening: {'🔥 Yes' if awakening else '❌ No'}\n"
+        f"{describe_passive(char_name)}\n"
         f"❤️ HP: {hp}/{max_hp}\n"
         f"⚔️ Attack: {total_atk}\n"
         f"🛡️ Defense: {total_def}\n"
         f"💨 Speed: {total_spd}\n"
         f"🗡️ سلاح: {weapon or 'ندارم'}\n\n"
-        f"🔄 فرم‌های موجود:\n" +
-        "\n".join(f"  • {f}" for f in forms_available)
+        f"🔄 فرم‌های موجود (با /form تغییرشون بده):\n" +
+        forms_line
     )
 # =========================
 # STATS
@@ -238,16 +251,16 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     online_users[user.id] = user.first_name
     cursor.execute("""
-        SELECT level, xp, money, character, hp, max_hp,
+        SELECT level, xp, money, points, character, hp, max_hp,
                equipped_weapon, current_ship,
                extra_attack, extra_defense, extra_speed
         FROM players WHERE user_id=?
     """, (user.id,))
     data = cursor.fetchone()
-    if not data or not data[3]:
+    if not data or not data[4]:
         await update.message.reply_text("❌ اول /character_select بزن.")
         return
-    level, xp, money, char_name, hp, max_hp, weapon, ship, ex_atk, ex_def, ex_spd = data
+    level, xp, money, points, char_name, hp, max_hp, weapon, ship, ex_atk, ex_def, ex_spd = data
     char_stats = characters[char_name]["stats"]
     # FIX: extra stats اضافه شد
     total_atk = char_stats["attack"] + ex_atk
@@ -263,13 +276,14 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📊 آمار {char_name}\n\n"
         f"⭐ لول: {level}\n"
         f"💰 پول: {money}\n"
+        f"🎯 پوینت: {points} (با /points خرجش کن)\n"
         f"❤️ HP: {hp}/{max_hp}\n"
         f"⚔️ Attack: {total_atk}\n"
         f"🛡️ Defense: {total_def}\n"
         f"💨 Speed: {total_spd}\n"
         f"🗡️ سلاح: {weapon or 'ندارم'}\n"
         f"⛵ کشتی: {ship or 'ندارم'}"
-        )
+    )
 
 # =========================
 # PROFILE
@@ -404,6 +418,10 @@ async def fight_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     p1_form = p1[6] or "Base"
     p2_form = p2[6] or "Base"
+
+    # پسیو هر شخصیت (باف خودکار و همیشگی، بدون دمیج) اینجا اعمال می‌شه
+    p1_data["stats"] = apply_passive(p1[0], p1_data["stats"])
+    p2_data["stats"] = apply_passive(p2[0], p2_data["stats"])
 
     state = create_battle(p1_data, p2_data, SKILL_DB, p1_form, p2_form)
     battle_id = _new_battle_id()
@@ -570,9 +588,13 @@ async def fight_attack_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     # FIX: برنده +5 لول و جایزه می‌گیره، HP باقیمونده‌ش ثبت می‌شه؛
     # بازنده HP ـش ریست به max_hp می‌شه (مثل نسخه‌ی قبلی)
+    # سیستم پوینت: هر لول = 100 پوینت → برد فایت (+5 لول) = +500 پوینت،
+    # قابل خرج کردن با /points روی هر ترکیبی از دمیج/دفاع/سرعت/جون.
+    LEVELS_PER_WIN = 5
+    points_gained = LEVELS_PER_WIN * POINTS_PER_LEVEL
     cursor.execute(
-        "UPDATE players SET level=level+5, money=money+?, hp=? WHERE user_id=?",
-        (earned_money, winner_hp, winner_id)
+        "UPDATE players SET level=level+?, points=points+?, money=money+?, hp=? WHERE user_id=?",
+        (LEVELS_PER_WIN, points_gained, earned_money, winner_hp, winner_id)
     )
     cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (loser_id,))
 
@@ -603,7 +625,10 @@ async def fight_attack_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     def _outcome(viewer_side):
         if viewer_side == winner_side:
-            return f"🏆 تو بردی!\n💰 جایزه: +{earned_money} | ⭐ +5 لول"
+            return (
+                f"🏆 تو بردی!\n💰 جایزه: +{earned_money} | ⭐ +{LEVELS_PER_WIN} لول | "
+                f"🎯 +{points_gained} پوینت (با /points خرجش کن)"
+            )
         return "💀 تو باختی! HP ـت ریست شد به ماکزیمم."
 
     actor_text = f"{timeout_note}{turn_summary}\n\n{_outcome(side)}"
@@ -644,12 +669,14 @@ async def boss(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not skill_list:
         skill_list = [{"name": "Basic Attack", "damage": characters[char_name]["stats"]["attack"]}]
 
-    # دقیقاً مثل /stats: attack پایه + ارتقا + بونوس شمشیر
+    # دقیقاً مثل /stats: attack پایه + ارتقا + بونوس شمشیر + پسیو
     total_attack = characters[char_name]["stats"]["attack"] + extra_attack
     if weapon and weapon in SWORDS_SHOP:
         sword_bonus = SWORDS_SHOP[weapon]["attack"]
         sword_bonus = int(sword_bonus * 1.5) if char_name == "Roronoa Zoro" else sword_bonus
         total_attack += sword_bonus
+    passive = apply_passive(char_name, {"attack": total_attack})
+    total_attack = passive["attack"]
 
     bosses = ["Kaido", "Big Mom", "Blackbeard", "Akainu", "Doflamingo"]
     boss_name = random.choice(bosses)
@@ -701,11 +728,12 @@ async def boss(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # حتی اگه boss هنوز نمرده بود هم به اشتباه "برد" حساب می‌شد. الان درست:
     if boss_hp <= 0:
         money_reward = 500 + level * 50
+        boss_points_gained = 5 * POINTS_PER_LEVEL
         cursor.execute(
-            "UPDATE players SET level=level+5, money=money+?, hp=? WHERE user_id=?",
-            (money_reward, max(1, player_hp), user.id)
+            "UPDATE players SET level=level+5, points=points+?, money=money+?, hp=? WHERE user_id=?",
+            (boss_points_gained, money_reward, max(1, player_hp), user.id)
         )
-        log.append(f"🏆 Boss کشتی! +5 لول 💰 +{money_reward}")
+        log.append(f"🏆 Boss کشتی! +5 لول 💰 +{money_reward} 🎯 +{boss_points_gained} پوینت")
         mastery_rate = 5
     elif player_hp <= 0:
         cursor.execute("UPDATE players SET hp=max_hp WHERE user_id=?", (user.id,))
@@ -803,7 +831,6 @@ async def sword_shop_page_callback(update: Update, context: ContextTypes.DEFAULT
         _sword_shop_page_text(page),
         reply_markup=_sword_shop_keyboard(page)
     )
-
 
 # =========================
 # SHIP SHOP
@@ -993,28 +1020,53 @@ async def awaken(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"{msg}\n\n📊 بیشترین Mastery فعلی: {max_mastery}/100")
 
 # =========================
-# FORM - FIX: این دستور import شده بود ولی handler نداشت
+# FORM - بازنویسی کامل: قبلاً با تایپ کردن اسم فرم کار می‌کرد (/form Gear 2)
+# که هم دست‌وپاگیر بود هم اجازه می‌داد فرم‌های Awakening/Awakened رو بدون
+# باز کردن Awakening واقعی ست کنی. الان فقط با دکمه کار می‌کنه و فرم‌های
+# Awakening اصلاً توی لیست نیستن (اونا فقط از طریق /awaken باز می‌شن).
+# فقط شخصیت‌هایی که واقعاً چند حالت دارن (مثل Luffy: Gear 2/4/5، Zoro:
+# Asura/King of Hell) دکمه‌ی انتخاب فرم می‌گیرن.
 # =========================
 async def form_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     online_users[user.id] = user.first_name
-    if not context.args:
-        cursor.execute("SELECT character, current_form FROM players WHERE user_id=?", (user.id,))
-        data = cursor.fetchone()
-        if not data or not data[0]:
-            await update.message.reply_text("❌ اول /character_select بزن.")
-            return
-        char_name, form = data
-        forms = list(SKILL_DB.get(char_name, {}).keys())
-        text = f"⚡ فرم فعلی: {form or 'Base'}\n\nفرم‌های موجود:\n"
-        for f in forms:
-            text += f"• {f}\n"
-        text += "\nبرای تغییر: /form [نام فرم]"
-        await update.message.reply_text(text)
+    cursor.execute("SELECT character, current_form FROM players WHERE user_id=?", (user.id,))
+    data = cursor.fetchone()
+    if not data or not data[0]:
+        await update.message.reply_text("❌ اول /character_select بزن.")
         return
-    form_name = " ".join(context.args)
+    char_name, form = data
+    current_form = form or "Base"
+    switchable = get_switchable_forms(char_name)
+
+    if len(switchable) < 2:
+        await update.message.reply_text(
+            f"⚡ فرم فعلی: {current_form}\n\n"
+            f"🎭 {char_name} فرم قابل‌تغییری نداره."
+        )
+        return
+
+    keyboard = [
+        [InlineKeyboardButton(
+            f"{'✅ ' if f == current_form else ''}{f}",
+            callback_data=f"frm_{f}"
+        )]
+        for f in switchable
+    ]
+    await update.message.reply_text(
+        f"⚡ فرم فعلی: {current_form}\n\n🔄 کدوم فرم رو میخوای بگیری؟",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def form_pick_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """دکمه‌ی انتخاب فرم توی /form زده شد."""
+    query = update.callback_query
+    user = query.from_user
+    form_name = query.data[len("frm_"):]
     result = change_form(user.id, form_name)
-    await update.message.reply_text(result)
+    await query.answer()
+    await query.edit_message_text(result)
 
 # =========================
 # SHIP
@@ -1043,21 +1095,34 @@ async def ship(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def island(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     online_users[user.id] = user.first_name
-    cursor.execute("SELECT level FROM players WHERE user_id=?", (user.id,))
+    cursor.execute("SELECT level, current_island FROM players WHERE user_id=?", (user.id,))
     row = cursor.fetchone()
     if not row:
         await update.message.reply_text("❌ اول /start بزن.")
         return
-    level = row[0]
-    current_island = "East Blue"
-    for name, data in islands.items():
-        if level >= data["required_level"]:
-            current_island = name
+    level, current_island = row
+    # FIX: قبلاً current_island هیچ‌جا ذخیره نمی‌شد و هر بار از رو لول
+    # حساب می‌شد (یعنی /travel هیچ اثر واقعی‌ای نداشت). الان از ستون
+    # واقعی current_island خونده می‌شه.
+    if not current_island or current_island not in islands:
+        current_island = "East Blue"
+    if current_island == "East Blue":
+        # برای کاربرهای قدیمی: قبلاً current_island ذخیره نمی‌شد و هر بار از
+        # رو لول حساب می‌شد. اینجا یه‌بار همون منطق رو اجرا و ذخیره می‌کنیم
+        # تا پیشرفت قبلیشون از دست نره.
+        candidates = [n for n, d in islands.items() if level >= d["required_level"]]
+        if candidates:
+            best = max(candidates, key=lambda n: islands[n]["required_level"])
+            if best != "East Blue":
+                current_island = best
+                cursor.execute("UPDATE players SET current_island=? WHERE user_id=?", (current_island, user.id))
+                db.commit()
     island_data = islands[current_island]
     text = f"🗺️ جزیره فعلی: {current_island}\n"
     text += f"⭐ لول مورد نیاز: {island_data['required_level']}\n\n📍 پارت‌ها:\n"
     for num, part in island_data["parts"].items():
         text += f"  Part {num}: {part['name']}\n  👹 Boss: {', '.join(part['bosses'])}\n\n"
+    text += "برای فایت با باس‌های این جزیره: /island_boss"
     await update.message.reply_text(text)
 
 # =========================
@@ -1090,7 +1155,13 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if island_data["boat_required"] and not current_ship:
         await update.message.reply_text("❌ برای این جزیره کشتی نیاز داری! از /ship_shop بخر.")
         return
-    await update.message.reply_text(f"✅ به {dest} سفر کردی!")
+    # FIX: قبلاً اینجا فقط پیام "سفر کردی" نشون داده می‌شد ولی هیچی توی
+    # دیتابیس ذخیره نمی‌شد؛ یعنی /travel در عمل هیچ اثری نداشت.
+    cursor.execute("UPDATE players SET current_island=? WHERE user_id=?", (dest, user.id))
+    db.commit()
+    await update.message.reply_text(
+        f"✅ به {dest} سفر کردی!\nبرای فایت با باس‌های این جزیره: /island_boss"
+    )
         
 # =========================
 # DAILY - FIX: این دستور توی /start، /help و چندجای دیگه بهش اشاره می‌شد
@@ -1186,6 +1257,51 @@ async def upgrade_speed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Speed +10 شد!")
 
 # =========================
+# POINTS - سیستم جدید Stat Points
+# هر لول = 100 پوینت (POINTS_PER_LEVEL). چون هر برد فایت/باس = +5 لول و
+# هر برد Raid = +15 لول، این پوینت‌ها همونجا که لول اضافه می‌شه محاسبه
+# می‌شن. اینجا فقط منوی خرجشون رو نشون می‌دیم: با دکمه، آزادانه بین
+# Attack/Defense/Speed/HP انتخاب می‌کنی.
+# =========================
+def _points_keyboard() -> InlineKeyboardMarkup:
+    buttons = []
+    for stat, info in POINT_UPGRADES.items():
+        buttons.append([InlineKeyboardButton(
+            f"{info['label']} +{info['gain']} ({info['cost']} 🎯)",
+            callback_data=f"pts_{stat}"
+        )])
+    return InlineKeyboardMarkup(buttons)
+
+
+async def points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    online_users[user.id] = user.first_name
+    cursor.execute("SELECT character FROM players WHERE user_id=?", (user.id,))
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        await update.message.reply_text("❌ اول /character_select بزن.")
+        return
+    points = get_points(user.id)
+    await update.message.reply_text(
+        f"🎯 پوینت فعلی: {points}\n\n"
+        "هر لول +100 پوینت می‌ده (برد فایت/باس = +500، برد Raid = +1500).\n"
+        "کدوم ویژگی رو میخوای بالا ببری؟",
+        reply_markup=_points_keyboard()
+    )
+
+
+async def points_spend_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user = query.from_user
+    stat = query.data[len("pts_"):]
+    result = spend_points(user.id, stat)
+    await query.answer(result, show_alert=False)
+    points = get_points(user.id)
+    await query.edit_message_text(
+        f"{result}\n\n🎯 پوینت فعلی: {points}\n\nکدوم ویژگی رو میخوای بالا ببری؟",
+        reply_markup=_points_keyboard()
+        )
+    # =========================
 # RANK
 # =========================
 async def rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1219,7 +1335,8 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/skills - اسکیل‌ها\n"
         "/mastery - مستری\n"
         "/awaken - فعال‌سازی Awakening (نیاز: یه اسکیل با mastery 100)\n"
-        "/form [نام] - تغییر فرم\n"
+        "/form - انتخاب فرم با دکمه (فقط شخصیت‌هایی که چند حالت دارن)\n"
+        "/points - خرج کردن پوینت‌های لول‌آپ روی Attack/Defense/Speed/HP\n"
         "/shop - فروشگاه\n"
         "/sword_shop - فروشگاه شمشیر\n"
         "/ship_shop - فروشگاه کشتی\n"
@@ -1228,11 +1345,13 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/equip [نام] - تجهیز شمشیر\n"
         "/ship - کشتی فعلی\n"
         "/island - جزیره فعلی\n"
+        "/island_boss - فایت دکمه‌ای با باس‌های جزیره‌ی فعلی (کول‌داون ۵ دقیقه بعد از کشتن)\n"
         "/travel [نام] - سفر به جزیره\n"
         "/upgrade - منوی ارتقا (HP/Attack/Defense/Speed)\n"
         "/daily - جایزه روزانه\n"
         "/rank - رتبه‌بندی\n"
-        "/raid - نبرد Raid Boss (Big Mom / Kaido / Blackbeard)"
+        "/raid - فایت دکمه‌ای با Raid Boss (Big Mom / Kaido / Blackbeard)، "
+        "بعد از کشتنش ۵ دقیقه کول‌داون داره"
         )
 
 # =========================
@@ -1262,10 +1381,12 @@ app.add_handler(CommandHandler("mastery", mastery))
 
 app.add_handler(CommandHandler("awaken", awaken))
 app.add_handler(CommandHandler("form", form_cmd))
+app.add_handler(CommandHandler("points", points_cmd))
 
 app.add_handler(CommandHandler("ship", ship))
 
 app.add_handler(CommandHandler("island", island))
+app.add_handler(CommandHandler("island_boss", island_boss_cmd))
 app.add_handler(CommandHandler("travel", travel))
 
 app.add_handler(CommandHandler("upgrade", upgrade))
@@ -1282,9 +1403,18 @@ app.add_handler(CommandHandler("raid", raid))
 app.add_handler(CallbackQueryHandler(pick_character_callback, pattern=r"^pick_"))
 app.add_handler(CallbackQueryHandler(fight_callback, pattern=r"^fight_"))
 app.add_handler(CallbackQueryHandler(fight_attack_callback, pattern=r"^atk_"))
-app.add_handler(CallbackQueryHandler(raid_pick_callback, pattern=r"^rdpick_"))
-app.add_handler(CallbackQueryHandler(raid_join_callback, pattern=r"^rdjoin_"))
-app.add_handler(CallbackQueryHandler(raid_attack_callback, pattern=r"^rdatk_"))
+# FIX: قبلاً اینجا raid_pick_callback / raid_join_callback / raid_attack_callback
+# رجیستر می‌شدن که اصلاً import/تعریف نشده بودن → NameError همون لحظه‌ی
+# استارت ربات (کرش کامل، حتی قبل از رسیدن به polling). raid_handler.py
+# اصلاً چنین کالبک‌هایی نداره؛ raid_callback واقعی (که import شده بود ولی
+# هیچوقت رجیستر نشده بود) هم دقیقاً همینجا باید ثبت شه تا دکمه‌های
+# Big Mom/Kaido/Blackbeard توی /raid واقعاً کار کنن.
+app.add_handler(CallbackQueryHandler(raid_callback, pattern=r"^raid_"))
+app.add_handler(CallbackQueryHandler(raid_attack_callback, pattern=r"^ratk_"))
+app.add_handler(CallbackQueryHandler(island_boss_pick_callback, pattern=r"^ibpick_"))
+app.add_handler(CallbackQueryHandler(island_boss_attack_callback, pattern=r"^ibatk_"))
+app.add_handler(CallbackQueryHandler(form_pick_callback, pattern=r"^frm_"))
+app.add_handler(CallbackQueryHandler(points_spend_callback, pattern=r"^pts_"))
 app.add_handler(CallbackQueryHandler(sword_shop_page_callback, pattern=r"^swdpg_"))
 print("🏴‍☠️ Bot Online - One Piece RPG")
 app.run_polling()
