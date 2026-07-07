@@ -39,7 +39,10 @@ CREATE TABLE IF NOT EXISTS players (
     extra_speed INTEGER DEFAULT 0,
     last_daily TEXT,
     daily_streak INTEGER DEFAULT 0,
-    current_island TEXT DEFAULT 'East Blue'
+    current_island TEXT DEFAULT 'East Blue',
+    race TEXT,
+    equipped_weapons TEXT DEFAULT '',
+    equipped_clothing TEXT
 )
 """)
 
@@ -101,6 +104,15 @@ CREATE TABLE IF NOT EXISTS boss_cooldowns (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS pvp_cooldowns (
+    user_a INTEGER,
+    user_b INTEGER,
+    last_fight_at REAL,
+    PRIMARY KEY (user_a, user_b)
+)
+""")
+
 db.commit()
 
 # =========================
@@ -114,6 +126,9 @@ _PLAYER_COLUMN_MIGRATIONS = [
     ("points", "INTEGER DEFAULT 0"),
     ("daily_streak", "INTEGER DEFAULT 0"),
     ("current_island", "TEXT DEFAULT 'East Blue'"),
+    ("race", "TEXT"),
+    ("equipped_weapons", "TEXT DEFAULT ''"),
+    ("equipped_clothing", "TEXT"),
 ]
 
 for _col, _decl in _PLAYER_COLUMN_MIGRATIONS:
