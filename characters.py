@@ -17,7 +17,7 @@ characters = {
     "Greenbull":                    {"stats": {"hp": 540, "attack": 170, "defense": 135, "speed": 125}},
     "Shanks":                       {"stats": {"hp": 650, "attack": 220, "defense": 170, "speed": 160}},
     "Marshall D. Teach":            {"stats": {"hp": 700, "attack": 210, "defense": 165, "speed": 110}},
-    "Gol D. Roger":                 {"stats": {"hp": 900, "attack": 250, "defense": 200, "speed": 170}},
+    "Gol D. Roger":                 {"stats": {"hp": 1500, "attack": 290, "defense": 270, "speed": 200}},
     "Saint Jaygarcia Saturn":       {"stats": {"hp": 800, "attack": 230, "defense": 190, "speed": 130}},
     "Saint Ethanbaron V. Nusjuro":  {"stats": {"hp": 780, "attack": 220, "defense": 185, "speed": 140}},
     "Saint Topman Warcury":         {"stats": {"hp": 770, "attack": 215, "defense": 180, "speed": 125}},
@@ -71,5 +71,5 @@ characters = {
     "Cavendish":                    {"stats": {"hp": 480,  "attack": 170, "defense": 128, "speed": 145}},
 
     # ─── Special / Legends ────────────────────────────────────────────
-    "Monkey D. Dragon":             {"stats": {"hp": 850,  "attack": 240, "defense": 195, "speed": 165}},
+    "Monkey D. Dragon":             {"stats": {"hp": 1100,  "attack": 280, "defense": 235, "speed": 165}},
 }
