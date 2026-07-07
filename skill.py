@@ -345,18 +345,18 @@ SKILL_DB = {
     # =========================
     "Gol D. Roger": {
         "Base": [
-            {"name": "Pirate King Slash", "damage": 200},
-            {"name": "Divine Haki Strike", "damage": 210},
-            {"name": "King's Conquest", "damage": 215},
-            {"name": "Roger's Roar", "damage": 220},
-            {"name": "Ace of Spades Cut", "damage": 225},
+            {"name": "Pirate King Slash", "damage": 220},
+            {"name": "Divine Haki Strike", "damage": 230},
+            {"name": "King's Conquest", "damage": 245},
+            {"name": "Roger's Roar", "damage": 260},
+            {"name": "Ace of Spades Cut", "damage": 275},
         ],
         "Legend Form": [
-            {"name": "Era Ender", "damage": 260},
-            {"name": "One Piece Will", "damage": 280},
-            {"name": "Pirate King's Legacy", "damage": 285},
-            {"name": "Laugh Tale Requiem", "damage": 290},
-            {"name": "The Great Era Storm", "damage": 300},
+            {"name": "Era Ender", "damage": 290},
+            {"name": "One Piece Will", "damage": 305},
+            {"name": "Pirate King's Legacy", "damage": 320},
+            {"name": "Laugh Tale Requiem", "damage": 335},
+            {"name": "The Great Era Storm", "damage": 350},
         ],
     },
     
