@@ -22,6 +22,9 @@ from island_bosses import (
     get_rarity_multiplier, get_drop_item_name
 )
 from passive_system import apply_passive
+from race_system import apply_race
+from weapon_system import total_sword_bonus
+from clothes_system import clothing_bonus_for
 
 # دیکشنری global، کلیدش user_id (هر پلیر همزمان فقط یه فایت باس-جزیره‌ای)
 active_island_battles = {}
@@ -131,21 +134,33 @@ async def island_boss_pick_callback(update, context):
         await query.answer(f"⏳ {m}:{s:02d} دیگه مونده تا این باس دوباره ظاهر شه!", show_alert=True)
         return
 
-    cursor.execute("SELECT character, hp FROM players WHERE user_id=?", (user.id,))
+    cursor.execute("""
+        SELECT character, hp, level, extra_attack, extra_defense, extra_speed,
+               equipped_weapons, race, current_form, equipped_clothing
+        FROM players WHERE user_id=?
+    """, (user.id,))
     data = cursor.fetchone()
     if not data or not data[0]:
         await query.answer("❌ اول /character_select بزن.", show_alert=True)
         return
-    char_name, hp = data
+    char_name, hp, level, ex_atk, ex_def, ex_spd, weapons_str, race, current_form, clothing = data
     if hp <= 0:
         await query.answer("❌ HP نداری! از /daily استفاده کن.", show_alert=True)
         return
 
     b = ISLAND_BOSSES[boss_id]
-    cursor.execute("SELECT level FROM players WHERE user_id=?", (user.id,))
-    level = cursor.fetchone()[0]
 
-    player_stats = apply_passive(char_name, dict(characters[char_name]["stats"], hp=hp))
+    # FIX: قبلاً فقط استت خامِ شخصیت استفاده می‌شد (بدون /upgrade، بدون
+    # شمشیر/لباس، بدون نژاد) و فرم پلیر همیشه "Base" فرض می‌شد. الان دقیقاً
+    # مثل PVP/راید، همه‌ی اینا حساب می‌شن.
+    base_stats = dict(characters[char_name]["stats"], hp=hp)
+    base_stats["attack"] += ex_atk + total_sword_bonus(weapons_str, char_name)
+    base_stats["defense"] += ex_def + clothing_bonus_for(clothing)
+    base_stats["speed"] += ex_spd
+    player_stats = apply_passive(char_name, base_stats)
+    player_stats = apply_race(race, player_stats)
+    player_form = current_form or "Base"
+
     boss_stats = get_boss_stats(boss_id, level)
     skills, form, boss_char_name = get_boss_skills_and_form(boss_id)
 
@@ -160,7 +175,7 @@ async def island_boss_pick_callback(update, context):
 
     p1 = {"name": char_name, "stats": player_stats}
     p2 = {"name": boss_char_name, "stats": boss_stats}
-    state = create_battle(p1, p2, skills_db_for_fight, p1_form="Base", p2_form=form)
+    state = create_battle(p1, p2, skills_db_for_fight, p1_form=player_form, p2_form=form)
 
     active_island_battles[user.id] = {"state": state, "boss_id": boss_id}
 
