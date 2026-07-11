@@ -7,7 +7,7 @@
 # انتخاب اسکیل، جاخالی، دفاع. باس هم توی نوبت خودش با AI ساده (رندوم بین
 # اسکیل‌ها/جاخالی/دفاعِ خودش) بازی می‌کنه.
 #
-# + کول‌داون ۵ دقیقه‌ای بعد از کشتن یه باس (تا قبلش می‌شه هر چقدر خواستی
+# + کول‌داون ۳۰ دقیقه‌ای بعد از کشتن یه باس (تا قبلش می‌شه هر چقدر خواستی
 #   باهاش فایت بدی، حتی اگه ببازی).
 # + شانس خیلی کم (۵٪) دراپ آیتم مخصوص همون باس، با رریتی‌ای که به لولِ
 #   جزیره‌ی باس بستگی داره.
@@ -209,20 +209,21 @@ async def _finish_raid(query, user, won, boss_id, state):
     lines = state["log"][-6:]
 
     if won:
-        # +15 لول = +1500 پوینت (طبق سیستم پوینت: هر لول = ۱۰۰ پوینت)
-        raid_points_gained = 15 * 100
+        # آپدیت طبق درخواست: +10 لول (قبلاً +15) = +1000 پوینت (هر لول = ۱۰۰ پوینت)
+        RAID_LEVELS_PER_WIN = 10
+        raid_points_gained = RAID_LEVELS_PER_WIN * 100
         cursor.execute(
-            "UPDATE players SET level=level+15, points=points+?, hp=? WHERE user_id=?",
-            (raid_points_gained, final_hp, user.id)
+            "UPDATE players SET level=level+?, points=points+?, hp=? WHERE user_id=?",
+            (RAID_LEVELS_PER_WIN, raid_points_gained, final_hp, user.id)
         )
-        # کول‌داون ۵ دقیقه‌ای همین باس برای همین کاربر شروع می‌شه
+        # کول‌داون ۳۰ دقیقه‌ای همین باس برای همین کاربر شروع می‌شه (قبلاً ۵ دقیقه بود)
         cursor.execute(
             "INSERT INTO boss_cooldowns (user_id, boss_id, defeated_at) VALUES (?, ?, ?) "
             "ON CONFLICT(user_id, boss_id) DO UPDATE SET defeated_at=excluded.defeated_at",
             (user.id, boss_id, time.time())
         )
-        lines.append(f"\n🏆 {info['display']} کشتی! +15 لول 🎯 +{raid_points_gained} پوینت")
-        lines.append("⏳ این باس ۵ دقیقه کول‌داونه، بعدش دوباره می‌تونی بزنیش.")
+        lines.append(f"\n🏆 {info['display']} کشتی! +{RAID_LEVELS_PER_WIN} لول 🎯 +{raid_points_gained} پوینت")
+        lines.append("⏳ این باس ۳۰ دقیقه کول‌داونه، بعدش دوباره می‌تونی بزنیش.")
 
         # شانس خیلی کم دراپ آیتم مخصوص باس (رریتی‌ش به لول جزیره‌ی باس بستگی داره)
         if random.random() < RARE_DROP_CHANCE:
